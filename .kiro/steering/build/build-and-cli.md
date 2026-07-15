@@ -19,34 +19,34 @@ cd morphe-patches-template   # or morphe-patches
 ## Building CLI
 
 ```bash
-cd morphe-cli
-./gradlew build               # Produces build/libs/morphe-cli-<version>-all.jar
+cd morphe-desktop
+./gradlew build               # Produces build/libs/morphe-desktop-<version>-all.jar
 ```
 
 ## Patching an APK (CLI)
 
 ```bash
 # Basic patch with all defaults
-java -jar morphe-cli-all.jar patch --patches patches.mpp input.apk
+java -jar morphe-cli.jar patch --patches patches.mpp input.apk
 
 # With output and install
-java -jar morphe-cli-all.jar patch --patches patches.mpp --out morphe.apk input.apk --install
+java -jar morphe-cli.jar patch --patches patches.mpp --out morphe.apk input.apk --install
 
 # Enable/disable specific patches
-java -jar morphe-cli-all.jar patch --patches patches.mpp -e "Patch Name" -d "Other Patch" input.apk
+java -jar morphe-cli.jar patch --patches patches.mpp -e "Patch Name" -d "Other Patch" input.apk
 
 # Exclusive mode (only specified patches)
-java -jar morphe-cli-all.jar patch --patches patches.mpp --exclusive -e "Patch Name" input.apk
+java -jar morphe-cli.jar patch --patches patches.mpp --exclusive -e "Patch Name" input.apk
 
 # By index
-java -jar morphe-cli-all.jar patch --patches patches.mpp --ei 123 --di 456 input.apk
+java -jar morphe-cli.jar patch --patches patches.mpp --ei 123 --di 456 input.apk
 
 # With patch options
-java -jar morphe-cli-all.jar patch --patches patches.mpp -e "Patch" -Okey=value input.apk
+java -jar morphe-cli.jar patch --patches patches.mpp -e "Patch" -Okey=value input.apk
 
 # With options JSON file
-java -jar morphe-cli-all.jar options-create --patches patches.mpp --out options.json
-java -jar morphe-cli-all.jar patch --patches patches.mpp --options-file options.json input.apk
+java -jar morphe-cli.jar options-create --patches patches.mpp --out options.json
+java -jar morphe-cli.jar patch --patches patches.mpp --options-file options.json input.apk
 ```
 
 ## CLI Commands
@@ -64,9 +64,9 @@ java -jar morphe-cli-all.jar patch --patches patches.mpp --options-file options.
 
 ```bash
 #!/bin/sh
-cd morphe-cli && ./gradlew build && cd ..
+cd morphe-desktop && ./gradlew build && cd ..
 cd morphe-patches-template && ./gradlew buildAndroid && cd ..
-java -Xms152m -jar morphe-cli/build/libs/morphe-cli*-all.jar \
+java -Xms152m -jar morphe-desktop/build/libs/morphe-desktop-*-all.jar \
   patch --patches morphe-patches-template/build/libs/patches*.mpp \
   --out morphe.apk $1 --install
 ```

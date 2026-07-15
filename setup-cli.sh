@@ -1,14 +1,14 @@
 #!/bin/bash
-# setup-cli.sh — Install or update Morphe CLI
+# setup-cli.sh — Install or update Morphe CLI (morphe-desktop)
 # Two modes: download release (default) or build from source
 set -e
 
 SYMLINK="$(dirname "$0")/morphe-cli.jar"
-REPO="MorpheApp/morphe-cli"
+REPO="MorpheApp/morphe-desktop"
 
 # --- Mode: Download latest release ---
 download_release() {
-    echo "📦 Fetching latest morphe-cli release..."
+    echo "📦 Fetching latest morphe-desktop release..."
     
     # Get latest version from GitHub API
     LATEST=$(curl -s "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | cut -d'"' -f4)
@@ -30,7 +30,7 @@ download_release() {
         echo "   Current: v${CURRENT:-unknown} → Latest: v${VERSION}"
     fi
     
-    DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${LATEST}/morphe-cli-${VERSION}-all.jar"
+    DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${LATEST}/morphe-desktop-${VERSION}-all.jar"
     echo "   Downloading v${VERSION}..."
     
     curl -L -o "$SYMLINK" "$DOWNLOAD_URL"
@@ -40,14 +40,14 @@ download_release() {
 
 # --- Mode: Build from source ---
 build_from_source() {
-    CLI_DIR="$(dirname "$0")/MorpheApp/morphe-cli"
+    CLI_DIR="$(dirname "$0")/MorpheApp/morphe-desktop"
     if [ ! -d "$CLI_DIR" ]; then
         echo "❌ Source not found at $CLI_DIR"
-        echo "   Clone it: git clone https://github.com/${REPO} MorpheApp/morphe-cli"
+        echo "   Clone it: git clone https://github.com/${REPO} MorpheApp/morphe-desktop"
         exit 1
     fi
     cd "$CLI_DIR"
-    echo "🔧 Building morphe-cli from source..."
+    echo "🔧 Building morphe-desktop from source..."
     git pull
     VER=$(grep "^version" gradle.properties | cut -d= -f2 | tr -d ' ')
     ./gradlew build
@@ -63,6 +63,6 @@ case "${1:-download}" in
     *)
         echo "Usage: ./setup-cli.sh [download|build]"
         echo "  download  — Download latest release from GitHub (default)"
-        echo "  build     — Build from source (requires MorpheApp/morphe-cli)"
+        echo "  build     — Build from source (requires MorpheApp/morphe-desktop)"
         ;;
 esac

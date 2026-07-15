@@ -35,7 +35,7 @@ EOF
 
 ```bash
 mkdir morphe && cd morphe
-git clone https://github.com/MorpheApp/morphe-cli
+git clone https://github.com/MorpheApp/morphe-desktop
 git clone https://github.com/MorpheApp/morphe-patches-template
 # Optional: clone for reference
 git clone https://github.com/MorpheApp/morphe-patches
@@ -92,17 +92,17 @@ android { namespace = "app.morphe.extension" }
 # Build patches → patches/build/libs/patches-<version>.mpp
 cd morphe-patches-template && ./gradlew buildAndroid
 
-# Build CLI → build/libs/morphe-cli-<version>-all.jar
-cd morphe-cli && ./gradlew build
+# Build CLI → build/libs/morphe-desktop-<version>-all.jar
+cd morphe-desktop && ./gradlew build
 ```
 
 ## Quick Dev Script
 
 ```bash
 #!/bin/sh
-cd morphe-cli && ./gradlew build && cd ..
+cd morphe-desktop && ./gradlew build && cd ..
 cd morphe-patches-template && ./gradlew buildAndroid && cd ..
-java -Xms152m -jar morphe-cli/build/libs/morphe-cli-*-all.jar \
+java -Xms152m -jar morphe-desktop/build/libs/morphe-desktop-*-all.jar \
   patch --patches morphe-patches-template/build/libs/patches-*.mpp \
   --out morphe.apk $1 --install
 ```

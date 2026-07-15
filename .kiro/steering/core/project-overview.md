@@ -9,7 +9,7 @@ Morphe is an Android app modification/patching ecosystem. It modifies APK byteco
 | morphe-patcher | Core patcher engine (bytecode/resource manipulation via Smali + Apktool) | Kotlin |
 | morphe-patches | Official patches (YouTube/Music/Reddit) | Kotlin + Java |
 | morphe-patches-template | Template repo for creating custom patch bundles | Kotlin |
-| morphe-cli | Terminal-based patching tool | Kotlin |
+| morphe-desktop | Terminal-based patching tool (formerly morphe-cli) | Kotlin |
 | morphe-library | Shared utilities (APK signing, installation, ADB) | Kotlin (KMP) |
 | morphe-patches-library | Shared code for patch bundles | Java |
 | morphe-patches-gradle-plugin | Gradle plugin `app.morphe.patches` for building patches | Kotlin |
