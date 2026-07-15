@@ -29,6 +29,9 @@ The real value is in `.kiro/steering/` and `.kiro/prompts/` — portable markdow
 
 ## Prerequisites
 
+> [!NOTE]
+> If setting up via Windows Subsystem for Linux (WSL), refer to the [WSL Setup Guide](wsl/README.md) first.
+
 - **Kiro CLI** installed and configured
 - **JDK 17** — `sudo apt install openjdk-17-jdk`
 - **Android RE tools:**
