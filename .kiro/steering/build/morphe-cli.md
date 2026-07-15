@@ -1,5 +1,6 @@
-# Morphe CLI v1.8.1 — Complete Reference
+# Morphe CLI v1.11.0 — Complete Reference
 
+- Upstream repo: `MorpheApp/morphe-desktop` (formerly morphe-cli)
 - CLI jar: `morphe-cli.jar` (project root, run `./setup-cli.sh` to download)
 - Keystore: `Morphe.keystore` (project root — use `--keystore Morphe.keystore` for all patches)
 - Output: always save patched APKs to `analysis/<app>/builds/`
@@ -14,8 +15,8 @@ java -jar morphe-cli.jar patch -p patches.mpp [options] input.apk
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--patches` | `-p` | Path to MPP file OR GitHub repo URL (required, repeatable) |
-| `--out` | `-o` | Output APK path (default: same as input) |
+| `--patches` | `-p` | Path to MPP file OR GitHub/GitLab repo URL (required, repeatable) |
+| `--out` | `-o` | Output APK path (if omitted, saved next to input in app-named subfolder) |
 | `--install` | `-i` | Install via ADB after patching (optional device serial) |
 | `--enable` | `-e` | Enable patch by name |
 | `--disable` | `-d` | Disable patch by name |
@@ -35,8 +36,8 @@ java -jar morphe-cli.jar patch -p patches.mpp [options] input.apk
 | `--signer` | | Signer name (default: Morphe) |
 | `--striplibs` | | Keep only specified architectures (comma-separated, e.g. `arm64-v8a,x86`) |
 | `--temporary-files-path` | `-t` | Custom temp directory |
-| `--result-file` | `-r` | Save patching result to file |
-| `--purge` | | Delete temp files after patching |
+| `--result-file` | `-r` | Save JSON patching report to file |
+| `--disable-purge` | | Keep scratch files after patching (default is to purge) |
 | `--continue-on-error` | | Don't stop on first patch failure |
 | `--bytecode-mode` | | DEX processing: FULL, STRIP_SAFE, or STRIP_FAST (default) |
 | `--prerelease` | | Fetch dev pre-release from repo URL (use with `--patches <repo-url>`) |
@@ -63,6 +64,9 @@ java -jar morphe-cli.jar patch -p patches.mpp -f --striplibs=arm64-v8a input.apk
 # Use GitHub repo URL directly (downloads MPP automatically)
 java -jar morphe-cli.jar patch -p https://github.com/user/patches input.apk
 
+# Use GitLab repo URL
+java -jar morphe-cli.jar patch -p https://gitlab.com/user/patches input.apk
+
 # Use pre-release from repo
 java -jar morphe-cli.jar patch -p https://github.com/user/patches --prerelease input.apk
 
@@ -71,6 +75,9 @@ java -jar morphe-cli.jar patch -p patches.mpp --keystore my.keystore --keystore-
 
 # Save to analysis builds folder
 java -jar morphe-cli.jar patch -p patches.mpp -o analysis/app/builds/app_patched.apk input.apk
+
+# Keep temp files for debugging
+java -jar morphe-cli.jar patch -p patches.mpp --disable-purge -f input.apk
 ```
 
 ### list-patches — List available patches
@@ -81,14 +88,16 @@ java -jar morphe-cli.jar list-patches --patches patches.mpp [options]
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--patches` | `-p` | Path to MPP file (required) |
+| `--patches` | | Path to MPP file (required, repeatable) |
 | `--with-packages` | `-p` | Show compatible packages |
 | `--with-versions` | `-v` | Show compatible versions |
 | `--with-options` | `-o` | Show patch options |
 | `--with-descriptions` | `-d` | Show descriptions (default: true) |
 | `--with-universal-patches` | `-u` | Show universal patches (default: true) |
 | `--index` | `-i` | Show patch index (default: true) |
+| `--include-experimental` | `-x` | Include experimental app versions |
 | `--filter-package-name` | `-f` | Filter by package name |
+| `--prerelease` | | Fetch dev pre-release from repo URL |
 | `--out` | | Write to file instead of stdout |
 
 #### Examples
@@ -100,6 +109,9 @@ java -jar morphe-cli.jar list-patches --patches patches.mpp -pvo
 # Filter by app
 java -jar morphe-cli.jar list-patches --patches patches.mpp -f com.truecaller -pvo
 
+# Include experimental versions
+java -jar morphe-cli.jar list-patches --patches patches.mpp -pvox
+
 # Save to file
 java -jar morphe-cli.jar list-patches --patches patches.mpp -pvo --out patches.txt
 ```
@@ -107,19 +119,23 @@ java -jar morphe-cli.jar list-patches --patches patches.mpp -pvo --out patches.t
 ### list-versions — Show recommended versions
 
 ```bash
-java -jar morphe-cli.jar list-versions patches.mpp [options]
+java -jar morphe-cli.jar list-versions --patches patches.mpp [options]
 ```
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--filter-package-names` | `-f` | Filter by package name |
+| `--patches` | | Path to MPP file (required, repeatable) |
+| `--filter-package-names` | `-f` | Filter by package name (repeatable) |
 | `--count-unused-patches` | `-u` | Include non-default patches in count |
+| `--include-experimental` | `-x` | Include experimental versions |
+| `--prerelease` | | Fetch dev pre-release from repo URL |
 
 #### Examples
 
 ```bash
-java -jar morphe-cli.jar list-versions patches.mpp
-java -jar morphe-cli.jar list-versions patches.mpp -f com.truecaller
+java -jar morphe-cli.jar list-versions --patches patches.mpp
+java -jar morphe-cli.jar list-versions --patches patches.mpp -f com.truecaller
+java -jar morphe-cli.jar list-versions --patches patches.mpp -ux
 ```
 
 ### options-create — Generate options JSON
@@ -133,28 +149,64 @@ java -jar morphe-cli.jar options-create -p patches.mpp -o options.json
 | `--patches` | `-p` | Path to MPP file (required) |
 | `--out` | `-o` | Output JSON file path (required) |
 | `--filter-package-name` | `-f` | Filter by package name |
+| `--prerelease` | | Fetch dev pre-release from repo URL |
 
 ### utility install — Install APK via ADB
 
 ```bash
-java -jar morphe-cli.jar utility install -a app.apk [device-serial]
+java -jar morphe-cli.jar utility install -a app.apk [options] [deviceSerials...]
 ```
 
 | Flag | Short | Description |
 |------|-------|-------------|
 | `--apk` | `-a` | APK file to install (required) |
-| `--mount` | `-m` | Mount over existing app (package name) |
+| `--mount` | `-m` | Mount over existing app (provide package name) |
+| `--route-links` | | Route app's supported web links to it ("open with") |
+| `--disable-stock` | | With --route-links: stop stock package from handling links |
+
+#### Examples
+
+```bash
+# Standard install
+java -jar morphe-cli.jar utility install -a analysis/app/builds/app_patched.apk
+
+# Install on specific device
+java -jar morphe-cli.jar utility install -a app_patched.apk ABC123DEF
+
+# Mount install (root)
+java -jar morphe-cli.jar utility install -a app_patched.apk -m com.example.app
+
+# Install + route links
+java -jar morphe-cli.jar utility install -a app_patched.apk --route-links --disable-stock com.example.app
+```
 
 ### utility uninstall — Uninstall app
 
 ```bash
-java -jar morphe-cli.jar utility uninstall -p com.example.app [device-serial]
+java -jar morphe-cli.jar utility uninstall -p com.example.app [options] [deviceSerials...]
 ```
 
 | Flag | Short | Description |
 |------|-------|-------------|
 | `--package-name` | `-p` | Package name (required) |
 | `--unmount` | `-u` | Unmount instead of uninstall |
+
+### utility clear-cache — Delete cached files
+
+```bash
+java -jar morphe-cli.jar utility clear-cache [options]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--info` | Show per-category breakdown of what was cleared and space freed |
+
+#### Examples
+
+```bash
+java -jar morphe-cli.jar utility clear-cache
+java -jar morphe-cli.jar utility clear-cache --info
+```
 
 ## Quick Workflow
 
@@ -174,8 +226,11 @@ java -jar morphe-cli.jar patch \
   -p "$MPP" \
   --keystore Morphe.keystore \
   -o analysis/app/builds/app_patched.apk \
-  -f analysis/app/app_version.apk
+  -f analysis/app/apk/app_version.apk
 
 # 5. Install
 java -jar morphe-cli.jar utility install -a analysis/app/builds/app_patched.apk
+
+# 6. Clear cache when done
+java -jar morphe-cli.jar utility clear-cache --info
 ```
