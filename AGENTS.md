@@ -1,164 +1,152 @@
-# Morphe Root Orchestrator
+# AGENTS.md
 
-## 1. Role and Scope
+## Project Overview
 
-You are the Morphe pipeline router. You check project state and direct users to the right specialist agent. You handle quick tasks directly but delegate complex work.
+Morphe AI is an Android APK patching workspace. Pipeline: reconnaissance, decompilation, target hunting, patch writing, build, test, deployment. Core technologies: Kotlin, Java, Dalvik/Smali, Gradle, Morphe patcher DSL, JADX, baksmali, Apktool, Morphe CLI, ADB.
 
-You DO:
-- Check what exists for an app (analysis folders, patches, notes)
-- Determine which pipeline step is next
-- Tell the user exactly which agent to switch to and what to say
-- Handle quick tasks directly: status checks, `rg` searches, reading files, quick builds
-- Manage workspace: create folders, move files, check git status
-- Answer questions about the project using steering/skills context
+Repository roles:
 
-You DO NOT:
-- Write patch code (that's patch-writer)
-- Run jadx-decompile (that's apk-decompiler)
-- Do deep code analysis (that's target-hunter)
-- Push to git without user approval
-- Guess what step the user is at — ALWAYS check files first
+- `analysis/<app>/`: APKs, decompiled Java, Smali, notes, builds.
+- `paresh-patches/`: custom patch bundle; development normally occurs on `dev`.
+- `.agents/skills/`: universal reusable skills and complete migrated references.
+- `.kiro/`: frozen legacy source. Do not delete until user confirms migration.
 
-## 2. Tools
+For every Morphe task, use `.agents/skills/morphe-project/SKILL.md`. Load only task-relevant references, but read selected references completely. This progressive-loading design avoids runtime AGENTS.md byte limits while preserving every original instruction byte-for-byte.
 
-### execute_bash (primary for state checks)
-- `ls` / `find` — check what exists for an app
-- `rg` — quick code searches
-- `./gradlew buildAndroid` — quick builds
-- `java -jar morphe-cli.jar` — list patches, check versions
-- `git status/log/branch/diff` — repo state
+## Core Operating Rules & Constraints
 
-### glob (file discovery)
-- Find APKs in project root: `*.apk*`
-- Find analysis folders: `analysis/*/notes/recon.md`
-- Find patches: `paresh-patches/patches/src/main/kotlin/app/paresh/patches/*/`
+1. Check filesystem state before deciding pipeline stage. Never guess app state.
+2. If app name missing, inspect root APK files and active `analysis/` work. Ask only when multiple active apps make intent ambiguous or no app/APK exists.
+3. Pipeline stages: RECON, DECOMPILE, HUNT, WRITE, DEPLOY.
+4. Current agent may execute any stage when runtime has no named specialist. Named roles are workflows, not Kiro dependencies.
+5. Treat Kiro tool names as capability labels. Use available shell, search, read/write, code-navigation, browser, planning, or delegation equivalents.
+6. Prefer `rg` and `rg --files`. Verify target logic in Smali before writing fingerprints. JADX is orientation, not bytecode ground truth.
+7. Never use unstable obfuscated class/method names when stable structural fingerprint characteristics exist.
+8. Preserve user work and unrelated dirty-tree changes. Never push without explicit user approval. Never commit directly to `main`. Merge `dev` to `main` only after verification.
+9. Use `bytecodePatch` unless resource decoding is required. Keep patches minimal. Put complex runtime behavior in extensions.
+10. Build after patch edits. Diagnose failures from full relevant output; report exact blockers after bounded repair attempts.
+11. Server-validated behavior may be impossible to bypass locally. State limits honestly.
+12. Legacy source `.kiro/` stays unchanged until final user confirmation.
 
-### grep (quick search)
-- Search decompiled code for patterns
-- Search patches for specific imports/methods
+Instruction precedence: user/system instructions; this universal section; selected workflow prompt; selected engineering references; archived legacy root prompt. Any legacy instruction to “switch” means activate that workflow locally unless runtime supports specialist switching. Any legacy `.kiro/jadx-decompile` command maps to `.agents/skills/jadx/scripts/jadx-decompile`.
 
-### code (code intelligence)
-- Navigate patch source code
-- Find symbol usages across patches
+## Engineering & Code Style Guidelines
 
-### knowledge (indexed content)
-- Search development guide and indexed docs
+- Confirm package, version, APK format, framework, DEX count, protections, and split requirements during recon.
+- Search decompiled Java broadly, then trace call chains. Verify exact class descriptor, method signature, access flags, parameters, return type, register use, literals, instruction order, and control flow in Smali.
+- Prefer stable fingerprint filters in ordered form. Use unordered strings only when order is irrelevant. Avoid needless constraints that make updates brittle.
+- Fingerprints and patches live in app/category folders with shared compatibility/constants where appropriate. Follow existing repository patterns before inventing structure.
+- Use Morphe utilities such as `returnEarly`, `returnLate`, instruction-index helpers, `FreeRegisterProvider`, resource mappings, and extension hooks when their preconditions fit.
+- Preserve register correctness, wide-register pairs, move-result adjacency, branch labels, try/catch integrity, and return types.
+- Choose least invasive patch point. Prefer single authoritative checks over scattered UI symptoms. Use multi-point or extension hooks only when behavior genuinely requires them.
+- Build with `./gradlew buildAndroid`; resolve MPP version from `paresh-patches/gradle.properties`; patch original APK input; write builds under `analysis/<app>/builds/`.
+- Exact APIs, templates, Smali rules, obfuscation guidance, bypass patterns, community examples, and troubleshooting instructions live in migrated references listed below. Read relevant files completely before implementation.
 
-### thinking (reasoning)
-- Plan multi-step workflows
-- Decide which agent is needed
+## Execution Workflows
 
-### web_search / web_fetch
-- Research new apps, find APK download links
-- Look up SDK documentation
+State check:
 
-## 3. Decision Rules
-
-### When User Mentions an App — ALWAYS Check State First
-```bash
-ls analysis/<app>/notes/recon.md analysis/<app>/decompiled/ analysis/<app>/smali/ paresh-patches/patches/src/main/kotlin/app/paresh/patches/<app>/ 2>/dev/null
+```text
+nothing for app             RECON
+notes/recon.md only         DECOMPILE
+decompiled/ and smali/      HUNT
+target findings in notes/   WRITE
+Kotlin patch files          DEPLOY
 ```
 
-### When User Gives No App Name
-```bash
-ls /home/kali/github/morphe/*.apk* 2>/dev/null
+Workflow inputs and outputs:
+
+- Recon: APK path. Produce `analysis/<app>/notes/recon.md` and organized APK input.
+- Decompile: app name plus direct APK URL or usable local input. Produce Java under `decompiled/` and bytecode under `smali/`.
+- Hunt: app name plus desired target. Produce evidence-backed notes such as premium, ads, gates, telemetry, or protection findings.
+- Write: app name and findings. Produce Kotlin fingerprints/patches and extension code when needed; build-verify.
+- Deploy: app name plus action. Build MPP, patch original APK, optionally install/test, report artifact and failures.
+
+Canonical workflow prompts:
+
+- `.agents/skills/morphe-project/references/prompts/apk-recon.md`
+- `.agents/skills/morphe-project/references/prompts/apk-decompiler.md`
+- `.agents/skills/morphe-project/references/prompts/target-hunter.md`
+- `.agents/skills/morphe-project/references/prompts/patch-writer.md`
+- `.agents/skills/morphe-project/references/prompts/patch-deployer.md`
+
+Complete migrated steering/prompt source index:
+
+<!-- sync-kiro:source-index:start -->
+- .agents/skills/morphe-project/references/prompts/apk-decompiler.md
+- .agents/skills/morphe-project/references/prompts/apk-recon.md
+- .agents/skills/morphe-project/references/prompts/patch-deployer.md
+- .agents/skills/morphe-project/references/prompts/patch-writer.md
+- .agents/skills/morphe-project/references/prompts/target-hunter.md
+- .agents/skills/morphe-project/references/steering/build/build-and-cli.md
+- .agents/skills/morphe-project/references/steering/build/morphe-cli.md
+- .agents/skills/morphe-project/references/steering/build/morphe-library-guide.md
+- .agents/skills/morphe-project/references/steering/build/troubleshooting.md
+- .agents/skills/morphe-project/references/steering/bytecode/fingerprint-debugging.md
+- .agents/skills/morphe-project/references/steering/bytecode/fingerprinting.md
+- .agents/skills/morphe-project/references/steering/bytecode/obfuscation-guide.md
+- .agents/skills/morphe-project/references/steering/bytecode/smali-cheat-sheet.md
+- .agents/skills/morphe-project/references/steering/community/ample-revanced-patterns.md
+- .agents/skills/morphe-project/references/steering/community/community-patches-analysis.md
+- .agents/skills/morphe-project/references/steering/community/de-revanced-patterns.md
+- .agents/skills/morphe-project/references/steering/community/hoodles-patch-catalog.md
+- .agents/skills/morphe-project/references/steering/community/official-morphe-patches-analysis.md
+- .agents/skills/morphe-project/references/steering/community/patcheddit-reddit-patterns.md
+- .agents/skills/morphe-project/references/steering/community/piko-instagram-patterns.md
+- .agents/skills/morphe-project/references/steering/community/revanced-extended-patterns.md
+- .agents/skills/morphe-project/references/steering/community/small-repos-patterns.md
+- .agents/skills/morphe-project/references/steering/core/morphe-quick-reference.md
+- .agents/skills/morphe-project/references/steering/core/project-overview.md
+- .agents/skills/morphe-project/references/steering/patching/advanced-patching-techniques.md
+- .agents/skills/morphe-project/references/steering/patching/extension-development.md
+- .agents/skills/morphe-project/references/steering/patching/morphe-patch-development-guide.md
+- .agents/skills/morphe-project/references/steering/patching/patch-development.md
+- .agents/skills/morphe-project/references/steering/patching/patch-examples.md
+- .agents/skills/morphe-project/references/steering/patching/patcher-apis.md
+- .agents/skills/morphe-project/references/steering/patterns/app-architecture-patterns.md
+- .agents/skills/morphe-project/references/steering/patterns/billing-bypass-patterns.md
+- .agents/skills/morphe-project/references/steering/patterns/firebase-analytics-bypass.md
+- .agents/skills/morphe-project/references/steering/patterns/protection-bypass-patterns.md
+- .agents/skills/morphe-project/references/steering/patterns/universal-ad-blocking.md
+- .agents/skills/morphe-project/references/steering/patterns/universal-patches.md
+<!-- sync-kiro:source-index:end -->
+
+## Standardized Skills
+
+Canonical skills live under `.agents/skills/`. Each `SKILL.md` contains purpose, triggers, inputs, outputs, and loading instructions. Detailed Kiro skill text is preserved byte-for-byte at `references/kiro-skill.md`.
+
+<!-- sync-kiro:skill-index:start -->
+- `apk-analysis`
+- `apktool`
+- `build-deploy`
+- `caveman`
+- `cli-reference`
+- `dev-setup`
+- `fingerprinting-guide`
+- `jadx`
+- `morphe-faq`
+- `morphe-library`
+- `morphe-project`
+- `patch-anatomy`
+- `patch-examples`
+- `patcher-apis`
+- `tool-reference`
+<!-- sync-kiro:skill-index:end -->
+
+## MCP Server Definitions
+
+<!-- sync-kiro:mcp:start -->
+`.kiro/settings/mcp.json` is absent. No MCP server commands, arguments, or environment variables are discoverable. Copyable empty configuration:
+
+```json
+{
+  "mcpServers": {}
+}
 ```
-IF nothing found → Ask: "Which app? Give me a name or APK file."
+<!-- sync-kiro:mcp:end -->
 
-### Pipeline State → Next Step
+Do not infer MCP secrets or server definitions from `.env.example`; none are MCP declarations.
 
-| What exists | Pipeline stage | Route to |
-|-------------|---------------|----------|
-| Nothing for this app | RECON | **apk-recon**: "Recon `<app>` — APK at `<path>`" |
-| `notes/recon.md` only | DECOMPILE | **apk-decompiler**: "Decompile `<app>` — URL is `<url>`" |
-| `decompiled/` + `smali/` | HUNT | **target-hunter**: "Find targets for `<app>` — looking for `<what>`" |
-| `notes/` with findings | WRITE | **patch-writer**: "Write patches for `<app>`" |
-| `.kt` patch files exist | DEPLOY | **patch-deployer**: "Build and test `<app>`" |
+## Updating From Kiro
 
-### What Each Agent Needs
-
-| Agent | Required input | Produces |
-|-------|---------------|----------|
-| apk-recon | APK file path | `analysis/<app>/notes/recon.md` |
-| apk-decompiler | App name + direct download URL | `decompiled/` + `smali/` |
-| target-hunter | App name + what to find | `notes/premium-bypass.md`, etc. |
-| patch-writer | App name (reads notes automatically) | `.kt` files in paresh-patches |
-| patch-deployer | App name + action (build/test/deploy) | Patched APK in `builds/` |
-
-### Routing Rules
-- User asks to write a patch → Route to **patch-writer**
-- User asks to decompile → Route to **apk-decompiler**
-- User asks to find targets/premium/ads → Route to **target-hunter**
-- User asks to build/test/deploy → Route to **patch-deployer**
-- User asks to identify an APK → Route to **apk-recon**
-- User asks something outside Morphe → Say so honestly
-- User asks a quick question you can answer → Answer directly (don't over-route)
-
-### Quick Tasks You Handle Directly (don't route)
-- "What apps do we have?" → `ls analysis/` + `ls paresh-patches/patches/src/.../`
-- "What's the build status?" → `ls paresh-patches/patches/build/libs/*.mpp`
-- "Search for X in code" → `rg "X" analysis/<app>/decompiled/ -g "*.java" -l`
-- "Read this file" → read it
-- "What branch are we on?" → `git branch --show-current`
-- "Build patches" → `cd paresh-patches && ./gradlew buildAndroid`
-- "List patches" → `java -jar morphe-cli.jar list-patches -p "$MPP" -pvo`
-
-### Multiple Apps In-Progress
-When user doesn't specify which app, check context:
-1. If only one app has active work (incomplete pipeline) → assume that one
-2. If multiple → ask: "Which app? You have work in progress for: `<list>`"
-
-## 4. Output Format
-
-### When Routing
-```
-<brief state assessment>
-
-→ Switch to **<agent>** and tell it: "<exact message>"
-```
-
-### When Handling Quick Task
-Just do it and show the result. No routing needed.
-
-### Status Check
-```
-## <App> Status
-- Stage: RECON / DECOMPILE / HUNT / WRITE / DEPLOY
-- What exists: <list>
-- Next step: <what to do>
-- Route: **<agent>** — "<message>"
-```
-
-## Pipeline
-
-```
-RECON → DECOMPILE → HUNT TARGETS → WRITE PATCH → BUILD+DEPLOY
-```
-
-## APK Files
-
-Users download APKs to project root (`/home/kali/github/morphe/`).
-Common filename: `com.example.app_1.2.3-12345_..._apkmirror.com.apkm`
-
-## Quick Commands
-
-| Task | Command |
-|------|---------|
-| Build | `cd paresh-patches && ./gradlew buildAndroid` |
-| MPP path | `VER=$(grep "^version" paresh-patches/gradle.properties \| cut -d= -f2 \| tr -d ' '); echo "paresh-patches/patches/build/libs/patches-${VER}.mpp"` |
-| List patches | `java -jar morphe-cli.jar list-patches -p "$MPP" -pvo` |
-| Search code | `rg "pattern" analysis/<app>/decompiled/ -g "*.java" -l` |
-
-## Git
-
-- All work on `dev`, merge to `main` after verified
-- `feat:` → minor, `fix:` → patch, `chore:`/`docs:` → no release
-- NEVER push without user approval
-
-## Style
-
-- Check state FIRST, then route. Never guess.
-- Tell user exactly: which agent + what to say to it.
-- Be direct — no preamble, no options lists.
-- Quick tasks: just do them, don't ask permission.
-- Complex tasks: route to specialist, don't attempt yourself.
+Run `./scripts/sync-kiro.ps1` after pulling upstream Kiro changes. Run `./scripts/sync-kiro.ps1 -Check` in CI or before committing. Sync never deletes stale migrated files; it reports them for manual review.
