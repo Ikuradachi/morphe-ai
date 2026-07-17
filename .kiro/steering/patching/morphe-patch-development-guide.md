@@ -83,7 +83,7 @@ EOF
 ```bash
 mkdir morphe && cd morphe
 git clone https://github.com/MorpheApp/morphe-patches-template
-git clone https://github.com/MorpheApp/morphe-cli
+git clone https://github.com/MorpheApp/morphe-desktop
 ```
 
 ### Patch project structure
@@ -477,34 +477,34 @@ cd morphe-patches-template
 ### Build CLI
 
 ```bash
-cd morphe-cli
+cd morphe-desktop
 ./gradlew build
-# → build/libs/morphe-cli-<version>-all.jar
+# → build/libs/morphe-desktop-<version>-all.jar
 ```
 
 ### Test with CLI
 
 ```bash
 # List patches
-java -jar morphe-cli-all.jar list-patches --with-packages --with-versions patches.mpp
+java -jar morphe-cli.jar list-patches --with-packages --with-versions patches.mpp
 
 # Patch an APK
-java -jar morphe-cli-all.jar patch --patches patches.mpp --out patched.apk input.apk
+java -jar morphe-cli.jar patch --patches patches.mpp --out patched.apk input.apk
 
 # Patch + install via ADB
-java -jar morphe-cli-all.jar patch --patches patches.mpp --out patched.apk input.apk --install
+java -jar morphe-cli.jar patch --patches patches.mpp --out patched.apk input.apk --install
 
 # Enable specific patch only
-java -jar morphe-cli-all.jar patch --patches patches.mpp --exclusive -e "Patch Name" input.apk
+java -jar morphe-cli.jar patch --patches patches.mpp --exclusive -e "Patch Name" input.apk
 ```
 
 ### Quick dev script
 
 ```bash
 #!/bin/sh
-cd morphe-cli && ./gradlew build && cd ..
+cd morphe-desktop && ./gradlew build && cd ..
 cd morphe-patches-template && ./gradlew buildAndroid && cd ..
-java -Xms152m -jar morphe-cli/build/libs/morphe-cli-*-all.jar \
+java -Xms152m -jar morphe-desktop/build/libs/morphe-desktop-*-all.jar \
   patch --patches morphe-patches-template/build/libs/patches-*.mpp \
   --out morphe.apk $1 --install
 ```
