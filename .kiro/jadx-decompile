@@ -154,9 +154,9 @@ with open(f'{work_dir}/jadx-decompiler.ipynb', 'w') as f:
 PYSCRIPT
 
 # Generate metadata
-cat > "$WORK_DIR/kernel-metadata.json" << 'METADATA'
+cat > "$WORK_DIR/kernel-metadata.json" << METADATA
 {
-  "id": "cartoonzilla/jadx-apk-decompiler",
+  "id": "$KERNEL_ID",
   "title": "jadx-apk-decompiler",
   "code_file": "jadx-decompiler.ipynb",
   "language": "python",
