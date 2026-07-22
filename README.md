@@ -36,8 +36,7 @@ The real value is in `.kiro/steering/` and `.kiro/prompts/` — portable markdow
 | Tool | Purpose | Install |
 |------|---------|---------|
 | jadx | Decompile APK → Java source | `sudo apt install jadx` |
-| baksmali | Disassemble DEX → smali bytecode | `sudo apt install baksmali` |
-| smali | Assemble smali → DEX | `sudo apt install smali` |
+| baksmali / smali | Disassemble DEX → smali / Assemble smali → DEX | `sudo apt install libsmali-java` |
 | apktool | Decode/rebuild APK resources | `sudo apt install apktool` |
 | aapt | Read APK manifest/metadata | `sudo apt install aapt` |
 | ripgrep (rg) | Fast regex search | `sudo apt install ripgrep` |
@@ -48,7 +47,7 @@ The real value is in `.kiro/steering/` and `.kiro/prompts/` — portable markdow
 
 Quick install all:
 ```bash
-sudo apt install -y openjdk-17-jdk jadx baksmali smali apktool aapt ripgrep adb dex2jar
+sudo apt install -y openjdk-17-jdk jadx libsmali-java apktool aapt ripgrep adb dex2jar
 pip install kaggle
 ```
 
