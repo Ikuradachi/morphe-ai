@@ -146,16 +146,14 @@ execute {
     method.returnEarly(true)
 }
 ```
-
-### Test fingerprint incrementally
 Start with minimal fingerprint and add filters one by one:
 ```kotlin
-// Start with just return type
+// Start with just return type (object form is preferred)
 object TestFingerprint : Fingerprint(returnType = "Z")
-// Too many matches? Add access flags
-object TestFingerprint : Fingerprint(returnType = "Z", accessFlags = listOf(PUBLIC, STATIC))
+// Too many matches? Add access flags — list every flag exactly as in smali
+object TestFingerprint : Fingerprint(returnType = "Z", accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC))
 // Still too many? Add parameters
-object TestFingerprint : Fingerprint(returnType = "Z", accessFlags = listOf(PUBLIC, STATIC),
+object TestFingerprint : Fingerprint(returnType = "Z", accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),
     parameters = listOf("Lcom/revenuecat/purchases/CustomerInfo;"))
 // Now unique? Add filters for safety
 ```

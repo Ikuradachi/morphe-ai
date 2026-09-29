@@ -1,0 +1,21 @@
+{
+  "name": "morphe-patch-creator",
+  "displayName": "Morphe Patch Creator",
+  "description": "Claude-first workflow for authorized Android APK analysis and Morphe patch development, from reconnaissance through local validation.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Paresh Maheshwari",
+    "email": "Paresh-Maheshwari@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/Paresh-Maheshwari/morphe-ai",
+  "repository": "https://github.com/Paresh-Maheshwari/morphe-ai",
+  "license": "GPL-3.0-only",
+  "keywords": [
+    "android",
+    "apk",
+    "morphe",
+    "patching",
+    "reverse-engineering",
+    "skills"
+  ]
+}

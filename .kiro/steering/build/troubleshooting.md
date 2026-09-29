@@ -9,7 +9,8 @@ gpr.key = <token with read:packages>
 ```
 Or use `gh auth` with GitHub CLI.
 
-**Wrong JDK**: Ensure JDK 17 is set. Check `JAVA_HOME` and IDE settings.
+**Wrong JDK**: Use JDK 21 for patch development to match template CI. The desktop source
+separately documents JDK 17 as its build minimum; the installed CLI requires **JRE 21+**.
 
 **MPP file names change**: After pulling new commits, update paths in run configurations.
 
@@ -19,13 +20,13 @@ Or use `gh auth` with GitHub CLI.
 
 **Patch fails silently**: Check if `default = false` — patch may not be enabled. Use `-e "Patch Name"` to explicitly enable.
 
-**Extension class not found**: Ensure `extendWith("extensions/name.mpp")` path matches the extension build output.
+**Extension class not found**: Ensure `extendWith("extensions/name.mpe")` path matches the extension build output.
 
 ## App-Specific Notes
 
 **YouTube**: Requires MicroG-RE for Google account login on non-root. Package: `com.google.android.youtube`. APK type: `APK_REQUIRED`.
 
-**YouTube Music**: Same MicroG requirement. Package: `com.google.android.apps.youtube.music`.
+**YouTube Music**: Same MicroG requirement. Package: `com.google.android.apps.youtube.music`. APK type: `APK_REQUIRED`.
 
 **Reddit**: Uses APKM format (split APKs). Package: `com.reddit.frontpage`. Signature spoofing needed.
 
@@ -33,10 +34,10 @@ Or use `gh auth` with GitHub CLI.
 
 ```bash
 # List all patches and their status
-java -jar morphe-cli.jar list-patches --with-packages --with-versions --with-options patches.mpp
+java -jar morphe-cli.jar list-patches --patches patches.mpp --with-packages --with-versions --with-options
 
 # Capture Android logs
-adb logcat | grep 'morphe\|AndroidRuntime'
+adb logcat | rg 'morphe|AndroidRuntime'
 
 # Check patch version in app
 # Settings > Morphe > About

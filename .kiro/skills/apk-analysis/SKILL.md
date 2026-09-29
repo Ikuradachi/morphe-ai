@@ -1,151 +1,145 @@
 ---
 name: apk-analysis-workflow
-description: Step-by-step APK analysis workflow — decompile, identify protections, find targets, extract smali. Use when starting analysis of a new app for patching.
+description: Step-by-step APK analysis workflow for Morphe — preserve the input, inspect its complete container, decompile, extract every base DEX, find targets, and verify exact smali. Use when starting analysis of an authorized app.
 ---
-
-> **When to use:** Starting analysis of a new app. Follow steps in order: setup folder → identify APK → decompile (Kaggle) → extract smali → search targets → document findings. Always use `rg` not `grep`. Always verify targets in smali before writing fingerprints.
 
 # APK Analysis Workflow
 
-## Step 1: Setup Analysis Folder
+Use only with software the user is authorized to analyze. Decompiled Java is for understanding;
+smali is authoritative for fingerprints. Preserve the original package and complete split
+container throughout the workflow.
+
+## 1. Create the analysis workspace
 
 ```bash
 APP="appname"
-mkdir -p analysis/$APP/notes
-# Move + rename APK: <app>_<version>.<ext>
-mv /path/to/downloaded.apk analysis/$APP/${APP}_<version>.<ext>
-cd analysis/$APP
+mkdir -p "analysis/$APP"/{apk,notes,decompiled,smali,builds}
+cp -- "/path/to/package.apkm" "analysis/$APP/apk/"
 ```
 
-## Step 2: Identify the APK
+Copy; never move, delete, or overwrite the user's original. Record its SHA-256. If an existing
+workspace has another hash, stop and use a distinct app/version key.
+
+## 2. Identify the package/container
+
+For a plain APK:
 
 ```bash
-aapt dump badging ${APP}_*.apk* | head -5       # Package, version, SDK
-uvx apkid ${APP}_*.apk*                          # Protections/obfuscators
+aapt dump badging "analysis/$APP/apk/app.apk" | sed -n '1,5p'
+unzip -Z1 "analysis/$APP/apk/app.apk" | rg '(^|/)classes([0-9]+)?\.dex$'
 ```
 
-APKiD tells you: compiler (dx/d8/r8), obfuscator (ProGuard/R8/DexGuard), packer.
+For APKM/APKS/XAPK, enumerate nested APKs and select a base-named APK only for metadata,
+Java, and smali analysis. Preserve the full container as the later CLI input. Do not infer that an
+extracted base APK contains code/resources/native libraries shipped in feature or config splits.
 
-## Step 3: Check APK Type
+Optional protection detection:
 
 ```bash
-aapt dump xmltree ${APP}_*.apk* AndroidManifest.xml | rg -i "split|requiredSplit"
-unzip -l ${APP}_*.apk* | rg "\.dex"
-unzip -l ${APP}_*.apk* | rg "index.android.bundle|libflutter|libapp"
+uvx apkid "analysis/$APP/apk/<package>"
 ```
 
-| What you see | ApkFileType |
-|-------------|-------------|
-| No requiredSplitTypes | `APK` |
-| requiredSplitTypes in manifest | `XAPK` |
-| APKM format | `APKM` |
-| index.android.bundle | React Native (JS, not Java) |
-| libflutter.so | Flutter (logic in libapp.so) |
+Do not install a missing tool automatically.
 
-## Step 4: Decompile (Kaggle — primary method)
+## 3. Determine app architecture and intended ApkFileType
 
 ```bash
-# Remote decompile on Kaggle (4 cores, 28GB RAM)
-.kiro/jadx-decompile "<apk-download-url>" analysis/$APP/
-
-# Unzip the output
-cd analysis/$APP && unzip *_decompiled.zip -d decompiled/
+unzip -Z1 "<base-apk>" | rg 'classes([0-9]+)?\.dex|index\.android\.bundle|libflutter\.so|libapp\.so|^lib/'
+aapt dump xmltree "<base-apk>" AndroidManifest.xml | rg -i 'split|requiredSplit'
 ```
 
-For quick local decompile of small APKs only:
+| Complete artifact users will patch | Recommended | Required/enforced |
+|---|---|---|
+| Single APK | `APK` | `APK_REQUIRED` |
+| APKMirror APKM | `APKM` | `APKM_REQUIRED` |
+| Bundletool APKS | `APKS` | `APKS_REQUIRED` |
+| APKPure XAPK | `XAPK` | `XAPK_REQUIRED` |
+
+Non-`_REQUIRED` values guide Manager UI; `_REQUIRED` rejects other input formats. A manifest
+split declaration means a complete split container is needed, not specifically XAPK.
+
+Architecture indicators:
+
+- `assets/index.android.bundle`: React Native/Hermes; core logic may be JavaScript bytecode.
+- `libflutter.so` + `libapp.so`: Flutter AOT; core Dart logic is native.
+- packed/encrypted DEX: static analysis may be blocked; document rather than invent targets.
+
+## 4. Decompile and extract smali
+
+The Kaggle runner is the primary decompilation path (4 cores, 28 GB RAM) for large APKs. Explain
+that the direct URL and downloaded APK are processed by Kaggle, obtain explicit approval, then run
+the workspace `jadx-decompile` helper. Local jadx is the fallback for small APKs or when the user
+declines remote:
+
 ```bash
-jadx -d decompiled ${APP}_*.apk --deobf --show-bad-code -m restructure --no-res
+jadx --deobf --show-bad-code --no-res -d "analysis/$APP/decompiled" "<base-apk>"
 ```
 
-## Step 5: Extract Smali (CRITICAL)
-
-The patcher works on smali, not Java. Always extract:
+For each `classes*.dex` in the selected base APK:
 
 ```bash
-for dex in $(unzip -l ${APP}_*.apk* | rg "\.dex" | awk '{print $4}'); do
-    name=$(basename $dex .dex)
-    unzip -o ${APP}_*.apk* $dex -d /tmp/dex_extract
-    baksmali d /tmp/dex_extract/$dex -o smali/$name
+TMP=$(mktemp -d)
+unzip -j "<base-apk>" 'classes*.dex' -d "$TMP"
+for dex in "$TMP"/classes*.dex; do
+  name=$(basename "$dex" .dex)
+  baksmali d "$dex" -o "analysis/$APP/smali/$name"
 done
 ```
 
-## Step 6: Search for Targets
+Clean only the temporary directory you created. The remote Kaggle path requires an explanation of
+what APK/URL leaves the machine plus explicit approval before transmission.
+Never place tokens in notes or workflow state.
+
+## 5. Search for the requested behavior
 
 ```bash
-# Step 6a: Identify billing SDK
-rg "revenuecat|adapty|qonversion|superwall|BillingClient|LicenseChecker" decompiled/ -g "*.java" -l
+# Billing/feature SDKs
+rg -i 'revenuecat|adapty|qonversion|BillingClient|LicenseChecker' \
+  "analysis/$APP/decompiled" -g '*.java' -l
 
-# Step 6b: Find subscription checks (by SDK found above)
-rg "CustomerInfo|EntitlementInfos|getActive|getEntitlements" decompiled/ -g "*.java" -l
-rg "isPro|isPremium|isSubscribed|hasPremium" decompiled/ -g "*.java" -l
-
-# Step 6c: Find ads
-rg "showAd|loadAd|interstitial|AdMob|adView|MobileAds" decompiled/ -g "*.java" -l
-
-# Step 6d: Read target method with context
-rg "public static boolean.*CustomerInfo" decompiled/ -g "*.java" -A 10
+# Local gates and ads
+rg -i 'isPremium|isPro|isSubscribed|hasPremium|showAd|loadAd|InterstitialAd|MobileAds' \
+  "analysis/$APP/decompiled" -g '*.java' -l
 ```
 
-## Step 7: Verify in Smali
+Trace app-owned consumers to the smallest stable client-side decision point. Do not broaden the
+scope or pursue server-side payment, account, credential, entitlement, or attestation compromise.
+
+## 6. Verify each candidate in smali
+
+Search all DEX directories, then read the complete method:
 
 ```bash
-# Find target class in smali
-find smali/ -name "TargetClass.smali" | head
-
-# Read target method
-rg -A 30 "\.method public static" smali/classes5/yz/u.smali
+rg -l 'getEntitlements|getActive' "analysis/$APP/smali"
+rg -n -A 40 '^\.method ' "analysis/$APP/smali/classesN/path/Target.smali"
 ```
 
-From smali, note: method signature, access flags, register count, invoke-virtual calls and their order.
+Record:
 
-## Step 8: Document Findings
+- DEX and smali path.
+- Complete `.method` signature and exact access flags.
+- Parameter and return descriptors.
+- `.registers` or `.locals`.
+- Ordered relevant instructions and referenced stable APIs.
+- Intended patch point, uniqueness rationale, and limitations.
 
-Save in separate files per target type in `notes/`:
+Access flags are exact in Morphe fingerprints: list every flag shown in smali. Never identify a
+fingerprint with obfuscated app class/method/field names.
 
-`notes/recon.md` — APK identification:
-```markdown
-# <App> Recon
-- Package: com.example.app
-- Version: 1.0.0
-- APK Type: XAPK
-- Obfuscator: R8
-- DEX count: 5
-- Framework: Native Java/Kotlin
-```
+## 7. Write evidence
 
-`notes/premium-bypass.md` — subscription targets:
-```markdown
-# <App> — Premium Bypass
+`notes/recon.md` records identity, package/version, SHA-256, container, selected base member, DEX
+count, architecture, ABIs, protections, and missing tools. Use one additional note per target type.
+Every viable target must state `Smali verified: YES` and include the exact evidence above.
+Java-only candidates remain rejected/unverified and cannot advance to patch writing.
 
-## Target 1: Entitlement check
-- Class: yz/u (obfuscated)
-- Method: public static boolean e(CustomerInfo)
-- DEX: classes5.dex
-- Purpose: Returns true if user has active entitlements
-- Fingerprint strategy:
-  - returnType: Z
-  - accessFlags: PUBLIC, STATIC
-  - parameters: CustomerInfo
-  - filters: getEntitlements() → getActive()
-```
+## Final layout
 
-Other files: `ad-removal.md`, `signature-bypass.md`, `feature-gates.md`
-
-## Final Folder Structure
-
-```
+```text
 analysis/<app>/
-├── <app>_<version>.<ext>              # Original APK (renamed)
-├── <app>_<version>_decompiled.zip     # JADX output zip
-├── decompiled/                        # Extracted Java sources
-├── smali/                             # baksmali output (all DEX files)
-│   ├── classes/
-│   ├── classes2/
-│   └── ...
-└── notes/
-    ├── recon.md                       # APK identification
-    ├── premium-bypass.md              # Subscription/entitlement targets
-    ├── ad-removal.md                  # Ad-related targets
-    ├── signature-bypass.md            # Signature check targets
-    └── feature-gates.md               # Feature flag targets
+├── apk/          # preserved original APK/APKM/APKS/XAPK
+├── notes/        # recon, findings, workflow state
+├── decompiled/   # jadx output
+├── smali/        # classes, classes2, ...
+└── builds/       # later patched outputs
 ```

@@ -165,7 +165,7 @@ buildConfigClass.constructor().addInstructionsToEnd("""
 For methods returning `java.lang.Boolean` (boxed, not primitive):
 
 ```kotlin
-HasActiveSubFingerprint.method.returnBoxedBooleanEarly(value = true, force = true)
+HasActiveSubFingerprint.method.returnBoxedBooleanEarly(value = true)
 ```
 
 ## Pattern: Create Entitlement via Extension (FotMob)
@@ -311,7 +311,7 @@ val hasPlusField = UserFingerprint.classDef.fieldFromToString("hasPlus")
 val subscriberLevelField = UserFingerprint.classDef.fieldFromToString("subscriberLevel")
 
 // Remove final from fields
-fields.forEach { classDef.fieldByName(it.name).removeFlag(AccessFlags.FINAL) }
+fields.forEach { classDef.fieldByName(it.name).removeFlags(AccessFlags.FINAL) }
 
 // Set fields in LoggedIn constructor (only affects logged-in user, not friends)
 LoggedInStateFingerprint.classDef.constructor().apply {

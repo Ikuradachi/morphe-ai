@@ -24,9 +24,9 @@ Complete guide for creating, building, and deploying Morphe patches — from APK
 
 | Tool | Purpose | Install |
 |------|---------|---------|
-| JDK 17 | Build patches & CLI | `apt install openjdk-17-jdk` |
+| JDK 21 | Recommended patch-build toolchain; matches template CI and runs the CLI | `apt install openjdk-21-jdk` |
 | jadx | Decompile APK → Java source | `apt install jadx` |
-| baksmali | Disassemble DEX → smali bytecode | `apt install baksmali` |
+| baksmali | Disassemble DEX → smali for local analysis | `apt install libsmali-java` |
 | apktool | Decode/rebuild APK resources & manifest | `apt install apktool` |
 | aapt | Read APK manifest, permissions, resources | Part of Android SDK / `apt install aapt` |
 | ripgrep (rg) | Fast regex search across files | `apt install ripgrep` |
@@ -49,13 +49,13 @@ Complete guide for creating, building, and deploying Morphe patches — from APK
 |------|---------|---------|
 | uber-apk-signer | Sign, zipalign, verify APKs (v1/v2/v3) | [GitHub JAR](https://github.com/patrickfav/uber-apk-signer/releases) |
 | apksigner | Official Android APK signing tool | Part of Android build-tools |
-| smali | Assemble smali → DEX | `apt install smali` |
+| smali | Assemble smali → DEX for local tests only; Gradle builds use the pinned fork | `apt install libsmali-java` |
 
 ### Quick install all
 
 ```bash
 # apt packages
-sudo apt install -y jadx baksmali smali apktool aapt ripgrep dex2jar gh
+sudo apt install -y openjdk-21-jdk jadx libsmali-java apktool aapt ripgrep dex2jar gh
 
 # Python tools via uvx (no install needed, runs latest)
 uvx apkid app.apk
@@ -169,19 +169,30 @@ unzip -l apk/MyApp.apk | rg "index.android.bundle|libflutter|libapp"
 
 **Decision table:**
 
-| What you see | Meaning | ApkFileType |
-|-------------|---------|-------------|
-| No `requiredSplitTypes`, installs fine | Standard APK | `APK` |
-| `requiredSplitTypes` in manifest | Needs split APKs | `XAPK` |
-| APKPure only offers XAPK | Split-only distribution | `XAPK` |
-| APKMirror APKM format | Split bundle | `APKM` |
-| `index.android.bundle` in assets | React Native app | Logic in JS, not Java |
-| `libflutter.so` in lib/ | Flutter app | Logic in `libapp.so` |
+| Distribution you will patch | Recommended value | Enforced value |
+|---|---|---|
+| Complete single APK | `APK` | `APK_REQUIRED` |
+| APKMirror container | `APKM` | `APKM_REQUIRED` |
+| Bundletool container | `APKS` | `APKS_REQUIRED` |
+| APKPure container | `XAPK` | `XAPK_REQUIRED` |
+
+Non-`_REQUIRED` values recommend a format in Manager; `_REQUIRED` rejects other formats. Choose
+based on the complete artifact users must supply, not merely the presence of `requiredSplitTypes`.
+For split apps, preserve and patch the full container; an extracted base APK may omit code,
+resources, or native libraries.
+
+Architecture indicators:
+
+| What you see | Meaning |
+|---|---|
+| `index.android.bundle` in assets | React Native; core logic may be JS/Hermes |
+| `libflutter.so` and `libapp.so` | Flutter; core Dart logic is native AOT |
 
 ### Step 4: Decompile to Java
 
 ```bash
-# Primary method — remote decompile on Kaggle (4 cores, 28GB RAM)
+# Primary path — remote decompile on Kaggle (4 cores, 28GB RAM).
+# Explain that Kaggle receives the URL and APK, then obtain explicit approval first.
 .kiro/jadx-decompile "<apk-download-url>" analysis/$APP/
 cd analysis/$APP && unzip *_decompiled.zip -d decompiled/
 
@@ -374,7 +385,13 @@ object MainActivityOnCreateFingerprint : Fingerprint(
 | `fieldAccess(opcode, definingClass, type)` | Match field get/put |
 | `opcode(Opcode.X)` | Match specific opcode |
 | `literal(value)` | Match const literal |
+| `resourceLiteral(ResourceType.ID, "name")` | Match the APK's resolved resource ID literal |
+| `newInstance(type)` / `instanceOf(type)` / `checkCast(type)` | Match type operations |
 | `anyInstruction(f1, f2)` | Match either (version differences) |
+
+Filters match in order. Use `MatchAfterImmediately`, `MatchAfterWithin(n)`, or first-filter
+`MatchFirst()` only when smali requires distance constraints. `MatchAfterAtLeast` and
+`MatchAfterRange` are deprecated. Access flags match the exact bitmask; list every smali flag.
 
 ---
 
@@ -442,7 +459,7 @@ execute {
 ```kotlin
 val myPatch = bytecodePatch(name = "My Patch") {
     compatibleWith(COMPATIBILITY_APP)
-    extendWith("extensions/extension.mpp")
+    extendWith("extensions/extension.mpe")
     execute {
         MyFingerprint.method.addInstructions(1, """
             invoke-virtual {p0}, Landroid/app/Activity;->getApplicationContext()Landroid/content/Context;
@@ -486,7 +503,7 @@ cd morphe-desktop
 
 ```bash
 # List patches
-java -jar morphe-cli.jar list-patches --with-packages --with-versions patches.mpp
+java -jar morphe-cli.jar list-patches --patches patches.mpp --with-packages --with-versions
 
 # Patch an APK
 java -jar morphe-cli.jar patch --patches patches.mpp --out patched.apk input.apk
@@ -505,7 +522,7 @@ java -jar morphe-cli.jar patch --patches patches.mpp --exclusive -e "Patch Name"
 cd morphe-desktop && ./gradlew build && cd ..
 cd morphe-patches-template && ./gradlew buildAndroid && cd ..
 java -Xms152m -jar morphe-desktop/build/libs/morphe-desktop-*-all.jar \
-  patch --patches morphe-patches-template/build/libs/patches-*.mpp \
+  patch --patches morphe-patches-template/patches/build/libs/patches-*.mpp \
   --out morphe.apk $1 --install
 ```
 
@@ -520,7 +537,8 @@ java -Xms152m -jar morphe-desktop/build/libs/morphe-desktop-*-all.jar \
 | `dev` | Testing & development | Pre-release (`v1.2.0-dev.1`) |
 | `main` | Stable releases | Stable (`v1.2.0`) |
 
-Morphe Manager only uses **stable releases** from `main`. Pre-releases on `dev` are for testing.
+Stable releases come from `main`. Pre-releases on `dev` are available to users who explicitly
+enable the pre-release channel for the patch source; stable remains the normal default.
 
 ### Setup: Enable dev branch
 
@@ -576,7 +594,10 @@ GitHub Actions auto-updates these files after each release:
 - `CHANGELOG.md` — release notes
 - `gradle.properties` — version number
 - `patches-bundle.json` — download URL for Morphe Manager
-- `patches-list.json` — patch metadata
+- `patches-list.json` — patch metadata, including categories
+- `README.md` — generated patch listing
+
+Released MPP files also receive a build-provenance attestation.
 
 **Always run `git pull` before making new changes**, otherwise you'll get push rejections:
 
@@ -613,10 +634,13 @@ Or add a clickable badge in README:
 ### How Morphe Manager finds releases
 
 1. Reads `patches-bundle.json` from your repo (auto-updated by GitHub Actions)
-2. Downloads the `.mpp` file from the **latest stable release**
-3. Pre-releases are ignored by Morphe Manager
+2. Downloads the `.mpp` file from the selected release channel (stable by default)
+3. Uses dev pre-releases only when the user enables the pre-release channel for that source
 
 ### Clean repo reset (fresh start)
+
+⚠️ **Destructive and explicit-only.** This deletes releases, tags, workflow runs, branch history,
+and force-pushes `main`. Explain the impact and wait for confirmation before running any command.
 
 ```bash
 # Delete all releases, tags, action runs
@@ -796,6 +820,11 @@ import app.morphe.patcher.methodCall
 import app.morphe.patcher.fieldAccess
 import app.morphe.patcher.opcode
 import app.morphe.patcher.literal
+import app.morphe.patcher.resourceLiteral
+import app.morphe.patcher.newInstance
+import app.morphe.patcher.instanceOf
+import app.morphe.patcher.checkCast
+import app.morphe.patcher.anyInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction

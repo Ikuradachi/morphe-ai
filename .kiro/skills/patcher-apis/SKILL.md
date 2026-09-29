@@ -7,6 +7,9 @@ description: Advanced Morphe patcher APIs — BytecodeUtils, returnEarly/returnL
 
 # Morphe Advanced APIs + BytecodeUtils
 
+> ⚠️ Pinned source: morphe-patcher `6f189f9`, patches-library `6501aee`. Official docs may lag
+> the source — the pinned source wins if anything contradicts this file.
+
 ## Return Overrides (simplest way to patch)
 
 ```kotlin
@@ -21,6 +24,18 @@ method.returnEarly(null)       // return null (object)
 // Override all return statements (method still executes)
 method.returnLate(true)        // all returns become true
 method.returnLate(false)       // all returns become false
+```
+
+## `addInstructions` — Deprecation Note
+
+`addInstructions(String)` (no-index form) is **deprecated**. Always supply the index:
+
+```kotlin
+// ✅ Current
+method.addInstructions(0, "const/4 v0, 0x1\nreturn v0")
+
+// ❌ Deprecated — will be deleted
+method.addInstructions("const/4 v0, 0x1\nreturn v0")
 ```
 
 ## Instruction Search
@@ -141,6 +156,9 @@ document("res/values/strings.xml").use { doc ->
 
 // Resource ID lookup
 val index = method.indexOfFirstResourceIdOrThrow("resource_name")
+
+// List APK entries (raw archive names, not just staged files; useful for native libs)
+listApkEntries("lib/").forEach { name -> /* e.g. "lib/arm64-v8a/libapp.so" */ }
 ```
 
 ## Utility Helpers
@@ -154,8 +172,11 @@ field.removeFlags(AccessFlags.FINAL)
 val p0 = method.p0Register
 val paramCount = method.numberOfParameterRegisters
 
+// Read all registers used by an instruction (from patches-library BytecodeUtils)
+val usedRegisters: List<Int> = instruction.registersUsed
+
 // Clone method with extra registers
-val cloned = method.cloneMutableAndPreserveParameters()
+val cloned = method.cloneParameters()
 
 // Add instructions before last return
 method.addInstructionsToEnd("invoke-static {}, Lext;->hook()V")

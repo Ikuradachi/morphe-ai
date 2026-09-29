@@ -1,0 +1,24 @@
+{
+  "name": "morphe-ai",
+  "description": "Claude Code plugins and skills for authorized Morphe Android patch development.",
+  "owner": {
+    "name": "Paresh Maheshwari",
+    "email": "Paresh-Maheshwari@users.noreply.github.com"
+  },
+  "plugins": [
+    {
+      "name": "morphe-patch-creator",
+      "displayName": "Morphe Patch Creator",
+      "source": "./plugins/morphe-patch-creator",
+      "description": "Claude-first workflow for authorized Android APK analysis and Morphe patch development.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Paresh Maheshwari"
+      },
+      "homepage": "https://github.com/Paresh-Maheshwari/morphe-ai",
+      "repository": "https://github.com/Paresh-Maheshwari/morphe-ai",
+      "license": "GPL-3.0-only",
+      "keywords": ["android", "apk", "morphe", "patching"]
+    }
+  ]
+}

@@ -7,6 +7,65 @@ Built with [Kiro CLI](https://kiro.dev), but the prompts, skills, and steering c
 **Author:** [Paresh Maheshwari](https://github.com/Paresh-Maheshwari)
 **Repository:** [morphe-ai](https://github.com/Paresh-Maheshwari/morphe-ai)
 
+## Claude Code Plugin
+
+This repository is a Claude Code plugin marketplace. It ships the **Morphe Patch Creator** plugin
+under `plugins/morphe-patch-creator/`, defined by the marketplace manifest at
+`.claude-plugin/marketplace.json`.
+
+### Install from GitHub (anyone)
+
+Inside Claude Code, add this repository as a marketplace and install the plugin by name:
+
+```text
+/plugin marketplace add Paresh-Maheshwari/morphe-ai
+/plugin install morphe-patch-creator@morphe-ai
+```
+
+Equivalent shell commands, with an explicit scope:
+
+```bash
+claude plugin marketplace add Paresh-Maheshwari/morphe-ai --scope user
+claude plugin install morphe-patch-creator@morphe-ai --scope user
+```
+
+Use `--scope project` to share enablement through a repository, or `--scope local` for an
+uncommitted project-local install. Update or remove later with:
+
+```bash
+claude plugin update morphe-patch-creator@morphe-ai      # restart Claude Code to apply
+claude plugin uninstall morphe-patch-creator@morphe-ai   # add --keep-data to preserve plugin data
+```
+
+Cloning this repository alone does **not** register or install the plugin — you add the
+marketplace and install by name as above.
+
+### Load from a local checkout (development)
+
+```bash
+claude --plugin-dir ./plugins/morphe-patch-creator
+```
+
+Validate before loading when developing:
+
+```bash
+claude plugin validate --strict ./plugins/morphe-patch-creator
+claude plugin validate --strict .
+```
+
+### Start the pipeline
+
+```text
+/morphe-patch-creator:create-patch ./path/to/app.apk "describe the authorized change"
+```
+
+The primary skill delegates to focused recon, decompiler, target-hunter, patch-writer, and validator subagents. Device testing and Git/GitHub submission remain explicit-only commands. See [`plugins/morphe-patch-creator/README.md`](plugins/morphe-patch-creator/README.md) for configuration, dependencies, install scopes, and safety boundaries.
+
+> **Not sure how to use it? Just ask.** Both Kiro and Claude already carry this repo's skills and
+> steering context, so you don't need to memorize commands. Say something like *"how do I create a
+> patch?"* or *"what do you need from me to patch this APK?"* and the agent explains the workflow
+> and walks you through the next step.
+
 ## Using with Other AI Models
 
 The real value is in `.kiro/steering/` and `.kiro/prompts/` — portable markdown files you can use with any AI tool:
@@ -30,13 +89,14 @@ The real value is in `.kiro/steering/` and `.kiro/prompts/` — portable markdow
 ## Prerequisites
 
 - **Kiro CLI** installed and configured
-- **JDK 17** — `sudo apt install openjdk-17-jdk`
+- **JDK 21** recommended (aligns with template CI); JDK 17 is the minimum stated in desktop source
+- **JRE 21+** required to run the CLI
 - **Android RE tools:**
 
 | Tool | Purpose | Install |
 |------|---------|---------|
 | jadx | Decompile APK → Java source | `sudo apt install jadx` |
-| baksmali / smali | Disassemble DEX → smali / Assemble smali → DEX | `sudo apt install libsmali-java` |
+| baksmali | Disassemble DEX → smali (local analysis only) | `sudo apt install libsmali-java` |
 | apktool | Decode/rebuild APK resources | `sudo apt install apktool` |
 | aapt | Read APK manifest/metadata | `sudo apt install aapt` |
 | ripgrep (rg) | Fast regex search | `sudo apt install ripgrep` |
@@ -45,9 +105,12 @@ The real value is in `.kiro/steering/` and `.kiro/prompts/` — portable markdow
 | apkid | Detect obfuscators/packers | `uvx apkid` (no install needed) |
 | kaggle | Remote decompilation API | `pip install kaggle` |
 
+> **Note:** `baksmali` from apt is used only for local DEX analysis and manual smali reading.
+> Patch builds use the Gradle plugin's own pinned baksmali/smali fork automatically.
+
 Quick install all:
 ```bash
-sudo apt install -y openjdk-17-jdk jadx libsmali-java apktool aapt ripgrep adb dex2jar
+sudo apt install -y openjdk-21-jdk jadx libsmali-java apktool aapt ripgrep adb dex2jar
 pip install kaggle
 ```
 
@@ -68,24 +131,39 @@ gpr.user = <your-github-username>
 gpr.key = <github-pat-with-read:packages>
 EOF
 
-# 4. Clone your patches repo (folder must be named "paresh-patches")
-#    If you use a different name, update all references in .kiro/agents/, .kiro/prompts/, and AGENTS.md
-git clone <your-patches-repo> paresh-patches
+# 4. Clone your patches repo
+#    You can use any folder name — set MORPHE_PATCHES_DIR to match (default: morphe-patches)
+export MORPHE_PATCHES_DIR=morphe-patches   # or any name you prefer
+git clone <your-patches-repo> "${MORPHE_PATCHES_DIR}"
 
 # 5. Setup CLI (downloads latest from GitHub)
 ./setup-cli.sh
 
-# 6. Start Kiro
-kiro chat
+# 6. Start Kiro (this CLI is `kiro-cli`; `kiro` also works if aliased)
+kiro-cli chat
 ```
 
-## Environment Variables (.env)
+## Environment Variables
 
-| Variable | Required | Where to get |
-|----------|----------|--------------|
-| `KAGGLE_API_TOKEN` | Yes | https://kaggle.com/settings → API → Create New Token |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `MORPHE_PATCHES_DIR` | No | Path to your patches repo clone. Default: `morphe-patches` |
+| `KAGGLE_API_TOKEN` | Yes | From https://kaggle.com/settings → API → Create New Token |
 | `KAGGLE_KERNEL_ID` | Yes | Your Kaggle username + notebook name (e.g. `myuser/jadx-apk-decompiler`) |
 | `GITHUB_TOKEN` | Yes (for gradle) | GitHub → Settings → Developer → PAT with `read:packages` |
+| `MORPHE_DATA_DIR` | No | Override CLI data root (default: `morphe-data/` beside the real jar, then home/XDG fallback). Contains downloaded `patches/`, logs, tmp, and `morphe.keystore` |
+
+### Configuring a custom patches directory
+
+All agent commands resolve the patches repo via `MORPHE_PATCHES_DIR`. Set it once in your shell profile or `.env` file:
+
+```bash
+export MORPHE_PATCHES_DIR=my-custom-patches   # folder name, relative to workspace root
+```
+
+The agents and prompts use `${MORPHE_PATCHES_DIR:-morphe-patches}` so they fall back to `morphe-patches` if the variable is unset — no manual editing of every agent file required.
+
+Kiro agent filesystem allowlists use scoped `**/patches/**` and `**/extensions/**` globs because static JSON resource paths cannot interpolate `MORPHE_PATCHES_DIR`; prompts still resolve and write only within the configured patch repository.
 
 ## Kaggle Setup (Remote Decompilation)
 
@@ -128,14 +206,14 @@ morphe/
 ├── .env.example            # Template for secrets
 ├── .gitignore              # Ignores secrets, binaries, large folders
 ├── AGENTS.md               # Main orchestrator prompt
-├── LICENSE                 # Proprietary license
+├── LICENSE                 # GPL-3.0 license
 ├── README.md               # This file
-├── setup-cli.sh            # CLI download/build script
+├── setup-cli.sh            # CLI download script
 └── .kiro/
     ├── agents/             # 6 agent configs
     ├── prompts/            # Agent prompt files
     ├── skills/             # 13 on-demand skills
-    ├── steering/           # 31 always-loaded context files
+    ├── steering/           # 32 always-loaded context files
     │   ├── core/           # Project overview (morphe agent)
     │   ├── build/          # Build/CLI reference (patch-deployer)
     │   ├── patching/       # Patch writing guides (patch-writer)
@@ -147,9 +225,9 @@ morphe/
 
 # Created locally after setup (gitignored):
 ├── .env                    # Your secrets
-├── Morphe.keystore         # APK signing key (export from Morphe Manager)
 ├── morphe-cli.jar          # CLI binary (created by setup-cli.sh)
-├── paresh-patches/         # Your patches repo clone
+├── morphe-data/            # CLI data root (downloaded patches, logs, tmp, morphe.keystore)
+├── morphe-patches/         # Your patches repo clone (name set by MORPHE_PATCHES_DIR)
 └── analysis/               # APK analysis work (per-app folders)
     └── <app>/
         ├── apk/            # Original APK files (created by apk-recon)
@@ -178,7 +256,7 @@ morphe/
 
 ### apk-decompiler
 - **Trigger:** "Decompile `<app>` — URL is `<url>`"
-- **What it does:** Runs jadx remotely on Kaggle (28GB RAM), extracts smali from all DEX files
+- **What it does:** Decompiles to Java and extracts smali from all DEX files. Kaggle (28GB RAM) is the primary path — explains the data flow and gets your approval before uploading; local jadx is the fallback for small APKs or when you decline remote
 - **Tools:** jadx-decompile script, baksmali, unzip
 - **Input:** App name + direct APK download URL
 - **Output:** `analysis/<app>/decompiled/` (Java) + `analysis/<app>/smali/` (bytecode)
@@ -197,7 +275,7 @@ morphe/
 - **What it does:** Reads target findings, cross-checks against smali, writes Kotlin fingerprints + patch code, builds and verifies
 - **Tools:** rg, glob, code (LSP), gradle, thinking
 - **Input:** App name (reads notes automatically)
-- **Output:** `.kt` files in `paresh-patches/patches/src/.../`
+- **Output:** `.kt` files in `${MORPHE_PATCHES_DIR:-morphe-patches}/patches/src/...`
 - **Context:** Patch development guides, patcher APIs, bytecode utilities, real patch examples, advanced techniques
 
 ### patch-deployer
@@ -256,29 +334,28 @@ If you change your Kaggle username, update `KAGGLE_KERNEL_ID` in your `.env` fil
 
 ## Signing Key
 
-The `Morphe.keystore` is used to sign all patched APKs. Both the Morphe Manager app (phone) and CLI must use the **same keystore** so patched APKs can update each other.
+The CLI uses `morphe-data/morphe.keystore` by default. It reuses that key across desktop runs,
+so desktop-patched APKs can update each other. It is not automatically the same key held by
+Morphe Manager on a phone; export/import the key or pass the same custom `--keystore` when both
+environments must share a signing identity. No project-root keystore file is required.
 
-### Export from Morphe Manager (recommended)
+### Export from Morphe Manager (recommended, to match existing key)
 1. Open Morphe Manager on your phone
 2. Go to Settings → Export keystore
-3. Transfer the exported `.keystore` file to this project root
-4. Rename to `Morphe.keystore`
+3. Transfer the exported `.keystore` file to your project
+4. Pass it via `--keystore <path>` when patching
 
-This ensures phone-patched and CLI-patched APKs share the same signature — you can install updates from either without uninstalling.
-
-### Generate new keystore (if starting fresh)
+### Generate new keystore (if starting fresh without Morphe Manager)
 ```bash
-keytool -genkey -v -keystore Morphe.keystore -alias Morphe \
+keytool -genkey -v -keystore my.keystore -alias Morphe \
   -keyalg RSA -keysize 2048 -validity 10000 \
   -storepass morphe -keypass morphe
 ```
+Then import into Morphe Manager: Settings → Import keystore.
 
-Then import this keystore into Morphe Manager: Settings → Import keystore.
-
-### Usage
-The CLI always uses this keystore:
+### Usage with custom keystore
 ```bash
-java -jar morphe-cli.jar patch -p patches.mpp --keystore Morphe.keystore -f input.apk
+java -jar morphe-cli.jar patch -p patches.mpp --keystore my.keystore -o out.apk input.apk
 ```
 
 ## Troubleshooting
@@ -291,6 +368,7 @@ java -jar morphe-cli.jar patch -p patches.mpp --keystore Morphe.keystore -f inpu
 | Build fails | Check error in patch-deployer output — it gives exact file + line |
 | ADB not found | `sudo apt install adb` or connect device |
 | Agent gives wrong answer | Check steering files are loading: `/context show` in Kiro |
+| CLI fails to start | Ensure JRE 21+ is installed and `JAVA_HOME` is set correctly |
 
 ## Community Patch Repos (Reference)
 
@@ -337,4 +415,4 @@ The steering files in `.kiro/steering/community/` contain patterns learned from 
 
 ## License
 
-Copyright © 2026 Paresh Maheshwari. All rights reserved. See [LICENSE](LICENSE).
+GPL-3.0-only. See [LICENSE](LICENSE).

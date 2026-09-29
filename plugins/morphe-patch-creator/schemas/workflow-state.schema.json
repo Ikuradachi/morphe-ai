@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Paresh-Maheshwari/morphe-ai/schemas/morphe-workflow.schema.json",
+  "title": "Morphe Patch Creator Workflow State",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "app": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+    "request": { "type": "string", "minLength": 1 },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "required": ["path", "sha256"]
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "projectDir": { "type": "string", "minLength": 1 },
+        "analysisDir": { "type": "string", "minLength": 1 },
+        "patchesDir": { "type": ["string", "null"] },
+        "decompiler": { "enum": ["local", "remote", null] }
+      },
+      "required": ["projectDir", "analysisDir", "patchesDir", "decompiler"]
+    },
+    "stages": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "recon": { "$ref": "#/$defs/stage" },
+        "decompile": { "$ref": "#/$defs/stage" },
+        "hunt": { "$ref": "#/$defs/stage" },
+        "write": { "$ref": "#/$defs/stage" },
+        "validate": { "$ref": "#/$defs/stage" }
+      },
+      "required": ["recon", "decompile", "hunt", "write", "validate"]
+    },
+    "approvals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": { "type": "string", "minLength": 1 },
+          "recordedAt": { "type": "string", "format": "date-time" },
+          "scope": { "type": "string", "minLength": 1 }
+        },
+        "required": ["type", "recordedAt", "scope"]
+      }
+    },
+    "outputs": { "type": "array", "items": { "type": "string" } },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": { "enum": ["pending", "in_progress", "complete", "failed", "blocked"] },
+        "evidence": { "type": "array", "items": { "type": "string" } },
+        "error": { "type": ["string", "null"] },
+        "updatedAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "required": ["status", "evidence", "error", "updatedAt"]
+    }
+  },
+  "required": ["schemaVersion", "app", "request", "input", "configuration", "stages", "approvals", "outputs", "updatedAt"]
+}

@@ -13,47 +13,57 @@ You DO NOT:
 
 ## 2. Tools
 
+### Resolve Patches Directory
+```bash
+PATCHES_DIR="${MORPHE_PATCHES_DIR:-morphe-patches}"
+```
+
 ### gradle
 - Purpose: Build patch MPP from source
-- Command: `cd paresh-patches && ./gradlew buildAndroid`
+- Command: `cd "${PATCHES_DIR}" && ./gradlew buildAndroid`
 - Use when: You need a fresh build before testing
 - Do NOT use when: Build already exists and no code changed
 
 ### morphe-cli (list-patches)
 - Purpose: Verify patches are registered in MPP
-- Command: `java -jar morphe-cli.jar list-patches -p "$MPP" -pvo`
+- Command: `java -jar morphe-cli.jar list-patches --patches "$MPP" -pvo`
 - Use when: After build, to confirm patches exist
 - Do NOT use when: You haven't built yet
 
 ### morphe-cli (patch)
 - Purpose: Apply patches to APK and produce patched output
-- Command: `java -jar morphe-cli.jar patch -p "$MPP" --keystore Morphe.keystore -o <output> -f <input>`
+- Command: `java -jar morphe-cli.jar patch -p "$MPP" -o <output> -f <input>`
+- Default keystore `morphe-data/morphe.keystore` is used automatically — no extra flag needed
 - Use when: Build succeeded and patches are listed
 - Do NOT use when: Build failed or no APK found
 
 ### morphe-cli (patch --exclusive)
 - Purpose: Test a single patch fingerprint match
-- Command: `java -jar morphe-cli.jar patch -p "$MPP" --keystore Morphe.keystore --exclusive -e "Patch Name" --continue-on-error -o /tmp/test.apk -f <input>`
+- Command: `java -jar morphe-cli.jar patch -p "$MPP" --exclusive -e "Patch Name" --continue-on-error -o /tmp/test.apk -f <input>`
 - Use when: Debugging a specific fingerprint match failure
 - Do NOT use when: Running full patch suite
 
 ### adb
 - Purpose: Install patched APK on connected device
 - Command: `adb install -r <patched_apk>`
+  or: `java -jar morphe-cli.jar utility install -a <patched_apk>`
 - Use when: Patch succeeded and device is connected
 - Do NOT use when: Patch step failed
 
 ### MPP Path
 ```bash
-VER=$(grep "^version" paresh-patches/gradle.properties | cut -d= -f2 | tr -d ' ')
-MPP="paresh-patches/patches/build/libs/patches-${VER}.mpp"
+PATCHES_DIR="${MORPHE_PATCHES_DIR:-morphe-patches}"
+VER=$(grep "^version" "${PATCHES_DIR}/gradle.properties" | cut -d= -f2 | tr -d ' ')
+MPP="${PATCHES_DIR}/patches/build/libs/patches-${VER}.mpp"
 ```
 
 ## 3. Decision Rules
 
 ### Prerequisites (check BEFORE any action)
 ```
-IF no patches exist in paresh-patches/patches/src/main/kotlin/app/paresh/patches/<app>/
+PATCHES_DIR="${MORPHE_PATCHES_DIR:-morphe-patches}"
+
+IF no patches exist in "${PATCHES_DIR}/patches/src/main/kotlin"
   → STOP. Say: "No patches found. Switch to patch-writer agent."
 
 IF no APK in analysis/<app>/apk/
@@ -61,8 +71,8 @@ IF no APK in analysis/<app>/apk/
 ```
 
 ### APK Input Rule
-ALWAYS use the original APK file from `analysis/<app>/apk/`. This may be `.apk`, `.apkm`, `.xapk`, or any format.
-NEVER use `base.apk` or extracted/split files as CLI input.
+ALWAYS use the original APK file from `analysis/<app>/apk/`. Accepted formats: `.apk`, `.apkm`, `.xapk`, `.apks`. The CLI auto-detects the format and handles split merging automatically.
+NEVER use manually extracted `base.apk` or individual split files as CLI input.
 Find it: `ls analysis/<app>/apk/*`
 
 ### Execution Order
@@ -74,8 +84,9 @@ ALWAYS follow this sequence. Do NOT skip steps.
 4. IF patches not listed → STOP. Say: "Patches not registered. Check Constants.kt compatibility."
 5. Patch → apply to APK
 6. IF fingerprint match fails → STOP. Report which fingerprint failed and the error message.
-7. IF patch succeeds → Install via ADB (if device connected)
-8. IF no device → Report success, show patched APK path
+7. IF patch succeeds and the user explicitly requested device testing → Show the selected device and planned install command, then wait for confirmation
+8. Only after confirmation → Install via ADB; never uninstall or clear data as automatic recovery
+9. IF no device test was requested or no device is available → Report local success and the patched APK path
 
 ### Build Failure Report (for handoff to patch-writer)
 When build fails, ALWAYS provide:
@@ -95,7 +106,7 @@ When build fails, ALWAYS provide:
 ```
 ## Build Failed
 - Error type: compilation
-- File: patches/src/main/kotlin/app/paresh/patches/truecaller/premium/UnlockPremiumPatch.kt
+- File: patches/src/main/kotlin/<group>/patches/truecaller/premium/UnlockPremiumPatch.kt
 - Line: 12
 - Error: Unresolved reference: instructionMatches
 - Context: val idx = fingerprint.instructionMatches[0].index
@@ -125,8 +136,10 @@ IF it hangs on "Compiling" → likely infinite loop in annotation processing. ST
 - ALWAYS work on `dev` branch
 - NEVER commit directly to `main`
 - ALWAYS ask user before `git commit` or `git push`
+- Releases driven by semantic-release (conventional commits only)
 - Commit format: `feat:` (minor), `fix:` (patch), `chore:`/`docs:` (no release)
-- ALWAYS `git pull` after push (CI auto-updates files)
+- ALWAYS `git pull` after push (CI auto-commits CHANGELOG.md, gradle.properties,
+  patches-bundle.json, patches-list.json, README)
 
 ## 4. Output Format
 

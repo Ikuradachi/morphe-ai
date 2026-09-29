@@ -17,6 +17,7 @@
     }
   },
   "resources": [
+    "file://.kiro/steering/core/morphe-upstream-baseline.md",
     "file://.kiro/steering/patterns/*.md",
     "file://.kiro/steering/community/*.md",
     "file://.kiro/steering/bytecode/*.md"

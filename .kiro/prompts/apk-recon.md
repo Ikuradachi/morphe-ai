@@ -47,7 +47,7 @@ You DO NOT:
 
 ### Prerequisites
 ```
-IF no APK file path provided → check project root: ls /home/kali/github/morphe/*.apk* 2>/dev/null
+IF no APK file path provided → check project root: ls *.apk* 2>/dev/null
 IF still nothing → STOP. Say: "I need an APK file path to do recon."
 IF analysis/<app>/ already exists → read existing recon.md, ask user if redo
 ```

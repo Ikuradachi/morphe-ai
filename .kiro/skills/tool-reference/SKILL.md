@@ -3,7 +3,7 @@ name: tool-reference
 description: Optimized command-line arguments for all Android RE tools — jadx, baksmali, aapt, apkid, rg. Use when running any analysis tool to get the best flags and arguments.
 ---
 
-> **When to use:** Running any RE tool. Use these optimized flags for best results. Always use `rg` instead of `grep`. For jadx, prefer Kaggle remote (`.kiro/jadx-decompile`) for large APKs, local only for small/quick tasks.
+> **When to use:** Running any RE tool. Use these optimized flags for best results. Always use `rg` instead of `grep`. For jadx, the Kaggle runner (`.kiro/jadx-decompile`) is the primary path for large APKs — explain the data flow and get approval before uploading; local jadx is the fallback for small/quick tasks or when remote is declined.
 
 # Tool Reference — Optimized Arguments
 
@@ -49,7 +49,11 @@ rg "pattern" path/ --glob '!**/test/**'
 
 ## jadx — APK Decompiler
 
-### Remote (Kaggle — primary method)
+### Remote (Kaggle — primary path, approval required before upload)
+
+The Kaggle runner is the primary decompilation path for large APKs. Explain that the direct URL
+and downloaded APK are processed by Kaggle, obtain explicit user approval, then run:
+
 ```bash
 .kiro/jadx-decompile "<url>" analysis/<app>/
 ```

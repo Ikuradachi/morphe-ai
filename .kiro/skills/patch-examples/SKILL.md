@@ -7,6 +7,9 @@ description: Real-world Morphe patch patterns from official morphe-patches repo 
 
 # Real-World Patch Patterns
 
+> ⚠️ Pinned source: morphe-patcher `6f189f9`, patches-library `6501aee`. Extension artifacts
+> are `.mpe` files. `addInstructions(String)` without index is deprecated — always pass index.
+
 ## Pattern 1: Simple Method Override (Video Ads)
 
 ```kotlin
@@ -108,7 +111,7 @@ execute {
 
 ```kotlin
 val stringFilter = string("old string")
-Fingerprint(filters = listOf(stringFilter)).matchAllOrNull()?.forEach { match ->
+Fingerprint(filters = listOf(stringFilter)).matchAll().forEach { match ->
     match.method.apply {
         findInstructionIndicesReversedOrThrow(stringFilter).forEach { index ->
             val register = getInstruction<OneRegisterInstruction>(index).registerA
@@ -164,6 +167,27 @@ ProcessLicenseResponseFingerprint.method.addInstruction(0, "const/4 p1, 0x0")
 ValidateLicenseResponseFingerprint.method.returnEarly()
 ```
 
+## Pattern 11: Navigate to Called Method via InstructionMatch
+
+```kotlin
+// Navigate to the mutable method called at a matched instruction
+val calledMethod = MyFingerprint.instructionMatches[0].getMethodCalled()
+calledMethod.returnEarly(true)
+```
+
+## Pattern 12: Patch Availability (root-only feature)
+
+```kotlin
+val mountOnlyPatch = bytecodePatch(name = "Mount Feature") {
+    availability { installer, _ ->
+        if (installer == InstallerType.MOUNT) PatchAvailability.ENABLED
+        else PatchAvailability.UNAVAILABLE
+    }
+    category("Misc")
+    execute { /* … */ }
+}
+```
+
 ## Patch File Organization (morphe-patches)
 
 ```
@@ -192,7 +216,7 @@ patches/src/main/kotlin/app/morphe/patches/
     └── ...
 
 extensions/
-├── youtube/src/main/java/    # YouTube extension code
+├── youtube/src/main/java/    # YouTube extension code (.mpe output)
 ├── music/src/main/java/      # Music extension code
 ├── reddit/src/main/java/     # Reddit extension code
 ├── shared/src/main/java/     # Shared extension code

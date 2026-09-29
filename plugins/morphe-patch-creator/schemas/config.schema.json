@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Paresh-Maheshwari/morphe-ai/schemas/morphe-config.schema.json",
+  "title": "Morphe Patch Creator Configuration",
+  "description": "Optional project configuration. Omitted fields use plugin defaults.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "analysisDir": {
+      "type": "string",
+      "minLength": 1,
+      "default": "analysis"
+    },
+    "patchesDir": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "default": null
+    },
+    "cliJar": {
+      "type": "string",
+      "minLength": 1,
+      "default": "morphe-cli.jar"
+    },
+    "keystorePath": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "default": null
+    },
+    "decompiler": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": ["local", "remote"],
+          "default": "local"
+        },
+        "remoteProvider": {
+          "enum": ["jadx-decompiler-gui", null],
+          "default": null
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"mode": {"const": "remote"}},
+            "required": ["mode"]
+          },
+          "then": {
+            "properties": {"remoteProvider": {"const": "jadx-decompiler-gui"}},
+            "required": ["remoteProvider"]
+          }
+        },
+        {
+          "if": {
+            "properties": {"remoteProvider": {"const": "jadx-decompiler-gui"}},
+            "required": ["remoteProvider"]
+          },
+          "then": {
+            "properties": {"mode": {"const": "remote"}},
+            "required": ["mode"]
+          }
+        },
+        {
+          "if": {
+            "properties": {"mode": {"const": "local"}},
+            "required": ["mode"]
+          },
+          "then": {
+            "properties": {"remoteProvider": {"type": "null"}}
+          }
+        }
+      ]
+    }
+  }
+}
