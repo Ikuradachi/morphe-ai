@@ -101,7 +101,7 @@ execute {
 
 ```kotlin
 val stringFilter = string("old string")
-Fingerprint(filters = listOf(stringFilter)).matchAllOrNull()?.forEach { match ->
+Fingerprint(filters = listOf(stringFilter)).matchAll().forEach { match ->
     match.method.apply {
         findInstructionIndicesReversedOrThrow(stringFilter).forEach { index ->
             val register = getInstruction<OneRegisterInstruction>(index).registerA

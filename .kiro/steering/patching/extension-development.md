@@ -193,16 +193,18 @@ public final class AdsFilter extends Filter {
 ## Extension File Location
 
 ```
-paresh-patches/extensions/extension/src/main/java/
+${PATCHES_DIR}/extensions/extension/src/main/java/
 ├── app/morphe/extension/shared/     # Shared utilities (already copied)
 │   ├── Utils.java
 │   ├── Logger.java
 │   ├── settings/
 │   └── ui/
-└── app/paresh/extension/            # YOUR extension code goes here
+└── <group>/extension/               # YOUR extension code goes here
     └── <app>/
         └── MyPatch.java
 ```
+
+`${PATCHES_DIR}` = `${MORPHE_PATCHES_DIR:-morphe-patches}`. The `<group>` matches your patches repo's Kotlin group (discover from `build.gradle.kts`).
 
 ## How to Use Extensions in Patches
 
@@ -213,8 +215,9 @@ val myPatch = bytecodePatch(name = "My Feature") {
 
     execute {
         // Call extension method from patched bytecode
+        // Replace <group> with your actual package group (from build.gradle.kts)
         TargetFingerprint.method.addInstructions(0, """
-            invoke-static { }, Lapp/paresh/extension/myapp/MyPatch;->isEnabled()Z
+            invoke-static { }, L<group>/extension/<app>/MyPatch;->isEnabled()Z
             move-result v0
             return v0
         """)
@@ -241,5 +244,5 @@ val myPatch = bytecodePatch(name = "My Feature") {
 1. Extension methods called from patches must be `public static`
 2. Use `@SuppressWarnings("unused")` — methods are called via reflection/smali
 3. Settings are read once at class load time (static final) for performance
-4. Extension class descriptor in smali: `Lapp/paresh/extension/myapp/MyPatch;`
+4. Extension class descriptor in smali: `L<group>/extension/<app>/MyPatch;`
 5. Extension is compiled to DEX and merged before patches execute

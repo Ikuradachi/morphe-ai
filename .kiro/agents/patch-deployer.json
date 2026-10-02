@@ -17,6 +17,7 @@
     }
   },
   "resources": [
+    "file://.kiro/steering/core/morphe-upstream-baseline.md",
     "file://.kiro/steering/build/*.md",
     "skill://.kiro/skills/build-deploy/SKILL.md",
     "skill://.kiro/skills/cli-reference/SKILL.md"
@@ -24,7 +25,7 @@
   "hooks": {
     "agentSpawn": [
       {
-        "command": "cd /home/kali/github/morphe/paresh-patches && echo '--- Git Status ---' && git status --short && echo '--- Branch ---' && git branch --show-current && echo '--- Latest Build ---' && ls -la patches/build/libs/*.mpp 2>/dev/null || echo 'No .mpp build found'",
+        "command": "PATCHES_DIR=\"${MORPHE_PATCHES_DIR:-morphe-patches}\"; cd \"${PATCHES_DIR}\" && echo '--- Git Status ---' && git status --short && echo '--- Branch ---' && git branch --show-current && echo '--- Latest Build ---' && ls -la patches/build/libs/*.mpp 2>/dev/null || echo 'No .mpp build found'",
         "description": "Show git status, current branch, and latest build"
       }
     ]

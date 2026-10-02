@@ -22,7 +22,8 @@
     },
     "fs_write": {
       "allowedPaths": [
-        "paresh-patches/**",
+        "**/patches/**",
+        "**/extensions/**",
         "analysis/**",
         ".kiro/**",
         ".agents/**"
@@ -41,7 +42,7 @@
   "hooks": {
     "agentSpawn": [
       {
-        "command": "echo '=== Morphe Workspace ===' && echo 'Patches:' && find /home/kali/github/morphe/paresh-patches/patches/src/main/kotlin/app/paresh/patches/ -maxdepth 1 -type d 2>/dev/null | tail -n +2 | xargs -I{} basename {} | tr '\\n' ', ' && echo '' && echo 'Analysis:' && ls /home/kali/github/morphe/analysis/ 2>/dev/null | tr '\\n' ', ' && echo '' && echo 'Branch:' && cd /home/kali/github/morphe/paresh-patches && git branch --show-current 2>/dev/null && echo 'Build:' && ls patches/build/libs/*.mpp 2>/dev/null || echo 'No build'",
+        "command": "PATCHES_DIR=\"${MORPHE_PATCHES_DIR:-morphe-patches}\"; echo '=== Morphe Workspace ===' && echo 'Patches:' && find \"${PATCHES_DIR}/patches/src/main/kotlin\" -mindepth 4 -maxdepth 4 -type d 2>/dev/null | xargs -I{} basename {} | tr '\\n' ', ' && echo '' && echo 'Analysis:' && ls analysis/ 2>/dev/null | tr '\\n' ', ' && echo '' && echo 'Branch:' && cd \"${PATCHES_DIR}\" && git branch --show-current 2>/dev/null && echo 'Build:' && ls patches/build/libs/*.mpp 2>/dev/null || echo 'No build'",
         "description": "Show workspace overview — patches, analysis projects, git status"
       }
     ]

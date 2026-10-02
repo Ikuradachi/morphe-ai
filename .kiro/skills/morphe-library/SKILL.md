@@ -7,6 +7,9 @@ description: Complete reference for all Morphe utility libraries — BytecodeUti
 
 # Morphe Library Reference
 
+> ⚠️ Pinned source: morphe-patcher `6f189f9`, patches-library `6501aee`. Official docs may lag
+> the source — the pinned source wins if anything contradicts this file.
+
 ## Patch Utilities (Kotlin — `app.morphe.util.*`)
 
 ### BytecodeUtils.kt — Most Used
@@ -24,6 +27,12 @@ method.returnEarly("text")     // return string
 method.returnEarly(null)       // return null object
 method.returnLate(true)        // override ALL return statements to true
 method.returnLate(false)       // override ALL return statements to false
+```
+
+**`addInstructions` deprecation note:** Always supply the index argument:
+```kotlin
+method.addInstructions(0, "...")    // ✅ correct
+method.addInstructions("...")       // ❌ deprecated — will be deleted
 ```
 
 **Instruction search:**
@@ -100,9 +109,9 @@ classDef.toStringMethod()
 
 **Method cloning:**
 ```kotlin
-import app.morphe.util.cloneMutableAndPreserveParameters
+import app.morphe.util.cloneParameters
 
-val cloned = method.cloneMutableAndPreserveParameters()
+val cloned = method.cloneParameters()
 ```
 
 **Helpers:**
@@ -110,6 +119,8 @@ val cloned = method.cloneMutableAndPreserveParameters()
 method.addInstructionsToEnd("invoke-static {}, Lext;->hook()V")
 method.p0Register          // actual register number of p0
 method.numberOfParameterRegisters
+// Read all registers used by an instruction
+val usedRegs: List<Int> = instruction.registersUsed
 true.toHexString()         // "0x1"
 ```
 
@@ -153,7 +164,7 @@ Transform method calls across entire classes.
 
 ## Extension Library (Java — `app.morphe.extension.shared.*`)
 
-Runtime code that runs inside the patched app. Use with `extendWith()` in patches.
+Runtime code that runs inside the patched app. Use with `extendWith("name.mpe")` in patches.
 
 ### Core
 | Class | Purpose |
@@ -198,7 +209,7 @@ Runtime code that runs inside the patched app. Use with `extendWith()` in patche
 ## File Locations
 
 ```
-paresh-patches/patches/src/main/kotlin/
+${PATCHES_DIR}/patches/src/main/kotlin/
 ├── app/morphe/util/                    # Kotlin utilities
 │   ├── BytecodeUtils.kt               # ★ Most used
 │   ├── FreeRegisterProvider.kt
@@ -212,11 +223,13 @@ paresh-patches/patches/src/main/kotlin/
 │   └── transformation/
 │       ├── MethodCall.kt
 │       └── TransformInstructionsPatch.kt
-└── app/paresh/patches/<app>/           # Our patches
+└── <group>/patches/<app>/              # Your patches (discover group from build.gradle.kts)
 
-paresh-patches/extensions/extension/src/main/java/
+${PATCHES_DIR}/extensions/extension/src/main/java/
 └── app/morphe/extension/shared/        # Java runtime code
     ├── Utils.java, Logger.java, etc.
     ├── settings/                        # Settings framework
     └── ui/                              # UI components
 ```
+
+`${PATCHES_DIR}` = `${MORPHE_PATCHES_DIR:-morphe-patches}`

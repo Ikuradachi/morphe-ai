@@ -31,7 +31,7 @@ You DO NOT:
 ### glob (file discovery)
 - Find APKs in project root: `*.apk*`
 - Find analysis folders: `analysis/*/notes/recon.md`
-- Find patches: `paresh-patches/patches/src/main/kotlin/app/paresh/patches/*/`
+- Find patches: `"${MORPHE_PATCHES_DIR:-morphe-patches}/patches/src/main/kotlin/**/patches/*/"`
 
 ### grep (quick search)
 - Search decompiled code for patterns
@@ -54,14 +54,25 @@ You DO NOT:
 
 ## 3. Decision Rules
 
-### When User Mentions an App — ALWAYS Check State First
+### Resolve Patches Directory
+All commands that reference the patches repo use:
 ```bash
-ls analysis/<app>/notes/recon.md analysis/<app>/decompiled/ analysis/<app>/smali/ paresh-patches/patches/src/main/kotlin/app/paresh/patches/<app>/ 2>/dev/null
+PATCHES_DIR="${MORPHE_PATCHES_DIR:-morphe-patches}"
+```
+This variable is read from the environment (set in `.env` or shell profile). When unset, it falls back to `morphe-patches`.
+
+### When User Mentions an App — ALWAYS Check State First
+
+Kiro agent JSON cannot interpolate environment variables in filesystem allowlists, so those configs use `**/patches/**` and `**/extensions/**`; agents must still resolve and modify only `PATCHES_DIR`.
+```bash
+PATCHES_DIR="${MORPHE_PATCHES_DIR:-morphe-patches}"
+ls "analysis/<app>/notes/recon.md" "analysis/<app>/decompiled/" "analysis/<app>/smali/" \
+   "${PATCHES_DIR}/patches/src/main/kotlin" 2>/dev/null
 ```
 
 ### When User Gives No App Name
 ```bash
-ls /home/kali/github/morphe/*.apk* 2>/dev/null
+ls *.apk* 2>/dev/null
 ```
 IF nothing found → Ask: "Which app? Give me a name or APK file."
 
@@ -82,7 +93,7 @@ IF nothing found → Ask: "Which app? Give me a name or APK file."
 | apk-recon | APK file path | `analysis/<app>/notes/recon.md` |
 | apk-decompiler | App name + direct download URL | `decompiled/` + `smali/` |
 | target-hunter | App name + what to find | `notes/premium-bypass.md`, etc. |
-| patch-writer | App name (reads notes automatically) | `.kt` files in paresh-patches |
+| patch-writer | App name (reads notes automatically) | `.kt` files in `${MORPHE_PATCHES_DIR:-morphe-patches}` |
 | patch-deployer | App name + action (build/test/deploy) | Patched APK in `builds/` |
 
 ### Routing Rules
@@ -95,13 +106,16 @@ IF nothing found → Ask: "Which app? Give me a name or APK file."
 - User asks a quick question you can answer → Answer directly (don't over-route)
 
 ### Quick Tasks You Handle Directly (don't route)
-- "What apps do we have?" → `ls analysis/` + `ls paresh-patches/patches/src/.../`
-- "What's the build status?" → `ls paresh-patches/patches/build/libs/*.mpp`
+```bash
+PATCHES_DIR="${MORPHE_PATCHES_DIR:-morphe-patches}"
+```
+- "What apps do we have?" → `ls analysis/` + `ls "${PATCHES_DIR}/patches/src/main/kotlin/"` (discover group path)
+- "What's the build status?" → `ls "${PATCHES_DIR}/patches/build/libs/"*.mpp`
 - "Search for X in code" → `rg "X" analysis/<app>/decompiled/ -g "*.java" -l`
 - "Read this file" → read it
 - "What branch are we on?" → `git branch --show-current`
-- "Build patches" → `cd paresh-patches && ./gradlew buildAndroid`
-- "List patches" → `java -jar morphe-cli.jar list-patches -p "$MPP" -pvo`
+- "Build patches" → `cd "${PATCHES_DIR}" && ./gradlew buildAndroid`
+- "List patches" → `java -jar morphe-cli.jar list-patches --patches "$MPP" -pvo`
 
 ### Multiple Apps In-Progress
 When user doesn't specify which app, check context:
@@ -137,23 +151,36 @@ RECON → DECOMPILE → HUNT TARGETS → WRITE PATCH → BUILD+DEPLOY
 
 ## APK Files
 
-Users download APKs to project root (`/home/kali/github/morphe/`).
+Users download APKs to the workspace root (current directory of the cloned repo).
 Common filename: `com.example.app_1.2.3-12345_..._apkmirror.com.apkm`
 
 ## Quick Commands
 
-| Task | Command |
-|------|---------|
-| Build | `cd paresh-patches && ./gradlew buildAndroid` |
-| MPP path | `VER=$(grep "^version" paresh-patches/gradle.properties \| cut -d= -f2 \| tr -d ' '); echo "paresh-patches/patches/build/libs/patches-${VER}.mpp"` |
-| List patches | `java -jar morphe-cli.jar list-patches -p "$MPP" -pvo` |
-| Search code | `rg "pattern" analysis/<app>/decompiled/ -g "*.java" -l` |
+```bash
+PATCHES_DIR="${MORPHE_PATCHES_DIR:-morphe-patches}"
+
+# Build
+cd "${PATCHES_DIR}" && ./gradlew buildAndroid
+
+# MPP path
+VER=$(grep "^version" "${PATCHES_DIR}/gradle.properties" | cut -d= -f2 | tr -d ' ')
+MPP="${PATCHES_DIR}/patches/build/libs/patches-${VER}.mpp"
+
+# List patches
+java -jar morphe-cli.jar list-patches --patches "$MPP" -pvo
+
+# Search code
+rg "pattern" analysis/<app>/decompiled/ -g "*.java" -l
+```
 
 ## Git
 
 - All work on `dev`, merge to `main` after verified
+- Releases driven by semantic-release (conventional commits only)
 - `feat:` → minor, `fix:` → patch, `chore:`/`docs:` → no release
 - NEVER push without user approval
+- Always `git pull` after push (CI auto-commits CHANGELOG.md, gradle.properties,
+  patches-bundle.json, patches-list.json, README)
 
 ## Style
 

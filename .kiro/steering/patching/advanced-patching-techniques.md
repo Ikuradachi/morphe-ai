@@ -111,7 +111,7 @@ val helperMethod = ImmutableMethod(
     baseModelType, AccessFlags.PRIVATE.value or AccessFlags.STATIC.value,
     null, null, MutableMethodImplementation(4)
 ).toMutable().apply {
-    addInstructions("""
+    addInstructions(0, """
         const-class v2, $baseModelType
         const v1, $storyTypeId
         const v0, $sponsoredDataTypeId
@@ -266,7 +266,7 @@ AttachBaseContextFingerprint.method.replaceInstruction(1,
 
 // 4. Remove FINAL from original attachBaseContext so we can override
 mutableClassDefBy(originalApplicationClassName).apply {
-    methods.firstOrNull { it.name == "attachBaseContext" }?.removeFlag(AccessFlags.FINAL)
+    methods.firstOrNull { it.name == "attachBaseContext" }?.removeFlags(AccessFlags.FINAL)
 }
 ```
 

@@ -134,6 +134,9 @@ document("res/values/strings.xml").use { doc ->
 
 // Resource ID lookup
 val index = method.indexOfFirstResourceIdOrThrow("resource_name")
+
+// List APK entries (raw archive names, not just staged files; useful for native libs)
+listApkEntries("lib/").forEach { name -> /* e.g. "lib/arm64-v8a/libapp.so" */ }
 ```
 
 ## Utility Helpers
@@ -147,8 +150,11 @@ field.removeFlags(AccessFlags.FINAL)
 val p0 = method.p0Register
 val paramCount = method.numberOfParameterRegisters
 
+// Read all registers used by an instruction (from patches-library BytecodeUtils)
+val usedRegisters: List<Int> = instruction.registersUsed
+
 // Clone method with extra registers
-val cloned = method.cloneMutableAndPreserveParameters()
+val cloned = method.cloneParameters()
 
 // Add instructions before last return
 method.addInstructionsToEnd("invoke-static {}, Lext;->hook()V")

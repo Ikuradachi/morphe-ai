@@ -7,16 +7,25 @@ description: Complete Morphe development environment setup — prerequisites, cl
 
 ## Prerequisites
 
-- JDK 17 (development), JRE 11+ (runtime)
-- Android reverse engineering tools: jadx, baksmali, smali, apktool, aapt
+- **JDK 21** recommended for development (aligns with template CI). JDK 17 is the stated
+  minimum in the desktop source, but JDK 21 gives a unified workspace/CI toolchain.
+- **JRE 21+** required to run the CLI (`morphe-cli.jar`).
+- Android reverse engineering tools for analysis: jadx, baksmali (local analysis/tests only —
+  patch builds use the patcher's own pinned baksmali/smali fork, not the distro package)
 - ripgrep (rg) for fast code search
 - GitHub CLI (gh) for auth and releases
 - Python tools via uvx: apkid, androguard
 
-## Quick Install
+> **Note:** `baksmali`/`smali` from apt is fine for local DEX analysis and manual smali reading.
+> It is **not** used during `./gradlew buildAndroid` — the Gradle plugin uses its own pinned fork.
+
+## Quick Install (analysis tools)
 
 ```bash
-sudo apt install -y jadx baksmali smali apktool aapt ripgrep dex2jar gh openjdk-17-jdk
+sudo apt install -y openjdk-21-jdk jadx libsmali-java apktool aapt ripgrep adb dex2jar gh
+# Python tools — no install needed, uvx runs latest version
+# uvx apkid app.apk
+# uvx androguard analyze -i app.apk
 ```
 
 ## GitHub Auth
@@ -35,16 +44,19 @@ EOF
 
 ```bash
 mkdir morphe && cd morphe
-git clone https://github.com/MorpheApp/morphe-desktop
+# Template for creating custom patches
 git clone https://github.com/MorpheApp/morphe-patches-template
-# Optional: clone for reference
+# Optional: clone official patches for reference
 git clone https://github.com/MorpheApp/morphe-patches
 git clone https://github.com/MorpheApp/morphe-patcher
 ```
 
+The CLI binary (`morphe-cli.jar`) is downloaded by `./setup-cli.sh` — no need to build
+`morphe-desktop` locally.
+
 ## Gradle Plugin Config
 
-`settings.gradle.kts`:
+`settings.gradle.kts` (template already has this configured):
 ```kotlin
 pluginManagement {
     repositories {
@@ -61,7 +73,7 @@ pluginManagement {
         maven { url = uri("https://jitpack.io") }
     }
 }
-plugins { id("app.morphe.patches") version "1.3.0" }
+plugins { id("app.morphe.patches") version "1.3.4" }
 ```
 
 `patches/build.gradle.kts`:
@@ -90,26 +102,22 @@ android { namespace = "app.morphe.extension" }
 
 ```bash
 # Build patches → patches/build/libs/patches-<version>.mpp
-cd morphe-patches-template && ./gradlew buildAndroid
-
-# Build CLI → build/libs/morphe-desktop-<version>-all.jar
-cd morphe-desktop && ./gradlew build
+PATCHES_DIR="${MORPHE_PATCHES_DIR:-morphe-patches}"
+cd "${PATCHES_DIR}" && ./gradlew buildAndroid
 ```
 
-## Quick Dev Script
+## Signing Key
 
-```bash
-#!/bin/sh
-cd morphe-desktop && ./gradlew build && cd ..
-cd morphe-patches-template && ./gradlew buildAndroid && cd ..
-java -Xms152m -jar morphe-desktop/build/libs/morphe-desktop-*-all.jar \
-  patch --patches morphe-patches-template/build/libs/patches-*.mpp \
-  --out morphe.apk $1 --install
-```
+The CLI uses the resolved data-root `morphe.keystore` by default. It is stable for desktop
+runs but is not automatically the same key stored by Morphe Manager on a phone. No project-root
+keystore is required.
+
+To share an identity, export/import the key or pass the same custom `--keystore <path>`. BKS,
+PKCS12, and JKS inputs are supported; PKCS12/JKS are converted to a copy and the source is unchanged.
 
 ## Troubleshooting
 
-- Auth failure: Check `~/.gradle/gradle.properties` has `gpr.user` and `gpr.key`
-- Wrong JDK: Ensure `JAVA_HOME` points to JDK 17
-- MPP file names change after releases: Update paths after `git pull`
-- Composite builds: If `morphe-patcher` exists as sibling dir, it's auto-included
+- **Auth failure**: Check `~/.gradle/gradle.properties` has `gpr.user` and `gpr.key`
+- **Wrong JDK / CLI fails**: Ensure `JAVA_HOME` points to JDK 21+; CLI requires JRE 21+
+- **MPP file names change after releases**: Run `git pull` then re-read `gradle.properties`
+- **Composite builds**: If `morphe-patcher` exists as sibling dir, it's auto-included

@@ -13,15 +13,21 @@ You DO NOT:
 
 ## 2. Tools
 
+### Resolve Patches Directory
+All commands use this variable:
+```bash
+PATCHES_DIR="${MORPHE_PATCHES_DIR:-morphe-patches}"
+```
+
 ### gradle
 - Purpose: Build patches to verify they compile
-- Command: `cd paresh-patches && ./gradlew buildAndroid`
+- Command: `cd "${PATCHES_DIR}" && ./gradlew buildAndroid`
 - Use when: After writing/modifying any .kt file
 - Do NOT use when: Only reading files
 
 ### morphe-cli (list-patches)
 - Purpose: Verify patches are registered in MPP
-- Command: `java -jar morphe-cli.jar list-patches -p "$MPP" -pvo`
+- Command: `java -jar morphe-cli.jar list-patches --patches "$MPP" -pvo`
 - Use when: After successful build, to confirm patch appears
 - Do NOT use when: Build failed
 
@@ -33,8 +39,9 @@ You DO NOT:
 
 ### MPP Path
 ```bash
-VER=$(grep "^version" paresh-patches/gradle.properties | cut -d= -f2 | tr -d ' ')
-MPP="paresh-patches/patches/build/libs/patches-${VER}.mpp"
+PATCHES_DIR="${MORPHE_PATCHES_DIR:-morphe-patches}"
+VER=$(grep "^version" "${PATCHES_DIR}/gradle.properties" | cut -d= -f2 | tr -d ' ')
+MPP="${PATCHES_DIR}/patches/build/libs/patches-${VER}.mpp"
 ```
 
 ## 3. Decision Rules
@@ -48,17 +55,27 @@ IF Constants.kt already exists → use existing compatibility. NEVER recreate.
 ```
 
 ### Check Existing Patches First
-ALWAYS check what already exists before writing:
+ALWAYS check what already exists before writing. Discover the Kotlin source root from the configured repo:
 ```bash
-ls paresh-patches/patches/src/main/kotlin/app/paresh/patches/<app>/ 2>/dev/null
+PATCHES_DIR="${MORPHE_PATCHES_DIR:-morphe-patches}"
+find "${PATCHES_DIR}/patches/src/main/kotlin" -mindepth 4 -maxdepth 4 -type d 2>/dev/null
 ```
-If files exist, read them to understand the current structure and add to it.
+If files exist, read them to understand the current group path and structure, then add to it.
 
-### File Format Reference (from existing patches)
+### Discover Package/Group Path
+The Kotlin package group (e.g. `app.example.patches`) is set in the patches repo's `build.gradle.kts` or derived from the existing source tree. ALWAYS discover it from the repo rather than assuming a fixed name:
+```bash
+PATCHES_DIR="${MORPHE_PATCHES_DIR:-morphe-patches}"
+head -1 "${PATCHES_DIR}/patches/src/main/kotlin"/*/*/*/patches/*/*.kt 2>/dev/null | grep "^package" | head -1
+# Or: cat "${PATCHES_DIR}/patches/build.gradle.kts" | grep '^group'
+```
+Use whatever group is found. If no patches exist yet, read `build.gradle.kts` for the `group` setting.
+
+### File Format Reference
 
 **Constants.kt** — one per app in `<app>/shared/`:
 ```kotlin
-package app.paresh.patches.<app>.shared
+package <group>.patches.<app>.shared
 
 import app.morphe.patcher.patch.ApkFileType
 import app.morphe.patcher.patch.AppTarget
@@ -68,8 +85,8 @@ object Constants {
     val COMPATIBILITY_<APP> = Compatibility(
         name = "<App Name>",
         packageName = "<com.example.app>",
-        apkFileType = ApkFileType.<APK|APKM|XAPK>,
-        appIconColor = 0x<hex color>,
+        apkFileType = ApkFileType.<APK|APK_REQUIRED|APKM|APKM_REQUIRED|APKS|APKS_REQUIRED|XAPK|XAPK_REQUIRED>,
+        appIconColor = 0x<RRGGBB>,   // six-digit hex, zero alpha byte; e.g. 0x6200EE
         targets = listOf(
             AppTarget(version = "<x.y.z>")
         )
@@ -79,7 +96,7 @@ object Constants {
 
 **Fingerprints.kt** — one per category in `<app>/<category>/`:
 ```kotlin
-package app.paresh.patches.<app>.<category>
+package <group>.patches.<app>.<category>
 
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.methodCall
@@ -88,6 +105,7 @@ import app.morphe.patcher.string
 // Comment: what this targets and why
 object SomeFingerprint : Fingerprint(
     returnType = "Z",
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),  // exact bitmask — list every flag
     parameters = listOf(),
     filters = listOf(
         string("some_stable_string")
@@ -97,11 +115,11 @@ object SomeFingerprint : Fingerprint(
 
 **Patch.kt** — one per category in `<app>/<category>/`:
 ```kotlin
-package app.paresh.patches.<app>.<category>
+package <group>.patches.<app>.<category>
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.bytecodePatch
-import app.paresh.patches.<app>.shared.Constants.COMPATIBILITY_<APP>
+import <group>.patches.<app>.shared.Constants.COMPATIBILITY_<APP>
 
 @Suppress("unused")
 val <app><Category>Patch = bytecodePatch(
@@ -121,7 +139,7 @@ val <app><Category>Patch = bytecodePatch(
 
 ### Folder Structure
 ```
-paresh-patches/patches/src/main/kotlin/app/paresh/patches/<app>/
+${PATCHES_DIR}/patches/src/main/kotlin/<group>/patches/<app>/
 ├── shared/Constants.kt
 ├── premium/
 │   ├── Fingerprints.kt
@@ -137,23 +155,32 @@ paresh-patches/patches/src/main/kotlin/app/paresh/patches/<app>/
 ### Fingerprint Rules (STRICT — violating these produces broken patches)
 - NEVER use obfuscated names (a, b, H, e) in fingerprints — they change every update
 - ALWAYS use filters (ordered) over strings (unordered) when possible
-- ONLY access `instructionMatches` if filters are defined in the fingerprint
+- ONLY access `instructionMatches` if filters are defined in the fingerprint; use `instructionMatchesOrNull` for safe null check
 - ALWAYS use `"L"` for obfuscated parameter types
 - Filter ORDER must match smali instruction order exactly
 - ALWAYS cross-check filters against smali BEFORE writing
+- `accessFlags` is an **exact bitmask** — list every flag from smali (e.g. `public static final` → `listOf(PUBLIC, STATIC, FINAL)`)
+- Declare fingerprints as `object X : Fingerprint(…)` — gives named stack traces on failure
+- The old `fingerprint { … }` DSL builder is deprecated — do not use it
+- `addInstructions(String)` (no index) is **deprecated** — always use `addInstructions(index, String)`
+- Extension artifacts use the `.mpe` file extension, never `.mpp`
+- Do not use `MatchAfterAtLeast` or `MatchAfterRange` — both deprecated
+- `parametersStartsWith` is renamed to `parametersMatch` — use the new name
 
 ### Execution Order
 1. Read target notes from `analysis/<app>/notes/`
-2. Read existing patches if any: `ls paresh-patches/patches/src/main/kotlin/app/paresh/patches/<app>/`
-3. Verify smali exists: `ls analysis/<app>/smali/`
-4. Cross-check each target's fingerprint against smali
-5. Write Constants.kt (if new app)
-6. Write Fingerprints.kt
-7. Write *Patch.kt
-8. Build: `./gradlew buildAndroid`
-9. IF build fails → fix immediately. Do NOT hand off broken code.
-10. List patches: verify registration
-11. Report done
+2. Discover patches directory: `PATCHES_DIR="${MORPHE_PATCHES_DIR:-morphe-patches}"`
+3. Read existing patches if any
+4. Discover group/package from existing source or `build.gradle.kts`
+5. Verify smali exists: `ls analysis/<app>/smali/`
+6. Cross-check each target's fingerprint against smali
+7. Write Constants.kt (if new app)
+8. Write Fingerprints.kt
+9. Write *Patch.kt
+10. Build: `cd "${PATCHES_DIR}" && ./gradlew buildAndroid`
+11. IF build fails → fix immediately. Do NOT hand off broken code.
+12. List patches: verify registration
+13. Report done
 
 ### Build Failure Rules
 - IF missing import → add it and rebuild
@@ -165,7 +192,7 @@ paresh-patches/patches/src/main/kotlin/app/paresh/patches/<app>/
 
 ### File Structure
 ```
-paresh-patches/patches/src/main/kotlin/app/paresh/patches/<app>/
+${PATCHES_DIR}/patches/src/main/kotlin/<group>/patches/<app>/
 ├── shared/Constants.kt          # Compatibility (package, versions)
 └── <category>/
     ├── Fingerprints.kt          # Fingerprint objects
@@ -207,6 +234,9 @@ import app.morphe.patcher.patch.ApkFileType
 import app.morphe.patcher.patch.AppTarget
 import app.morphe.patcher.patch.Compatibility
 import app.morphe.patcher.patch.PatchException
+import app.morphe.patcher.patch.InstallerType
+import app.morphe.patcher.patch.ApkArchitecture
+import app.morphe.patcher.patch.PatchAvailability
 ```
 
 ### Fingerprints & Filters
@@ -218,9 +248,15 @@ import app.morphe.patcher.string
 import app.morphe.patcher.StringComparisonType
 import app.morphe.patcher.fieldAccess
 import app.morphe.patcher.literal
+import app.morphe.patcher.resourceLiteral
+import app.morphe.patcher.newInstance
+import app.morphe.patcher.instanceOf
+import app.morphe.patcher.checkCast
 import app.morphe.patcher.opcode
+import app.morphe.patcher.anyInstruction
 import app.morphe.patcher.LiteralFilter
 import app.morphe.patcher.OpcodesFilter
+import app.morphe.patcher.InstructionLocation
 import com.android.tools.smali.dexlib2.AccessFlags
 ```
 
@@ -296,6 +332,12 @@ method.addInstructions(0, "return-void")
 val idx = fingerprint.instructionMatches[0].index
 val reg = fingerprint.instructionMatches[0].getInstruction<OneRegisterInstruction>().registerA
 method.addInstructions(idx + 1, "const/4 v$reg, 0x0")
+
+// Navigate to called method from a filter match
+val calledMethod = fingerprint.instructionMatches[0].getMethodCalled()
+
+// Null-safe match check (when filters may not match)
+val matches = fingerprint.instructionMatchesOrNull
 ```
 
 ## Utility APIs (app.morphe.util + patches/all/misc)

@@ -23,16 +23,31 @@ Morphe is an Android app modification/patching ecosystem. It modifies APK byteco
 
 ## Build System
 - Gradle with Kotlin DSL
-- Plugin: `app.morphe.patches` (settings plugin)
+- Plugin: `app.morphe.patches` **1.3.4** (settings plugin)
+- Patcher: **1.14.1**
+- Gradle: **9.7.1**, Java 21 CI target
 - Registry: `maven.pkg.github.com/MorpheApp/registry` (requires GitHub PAT with `read:packages`)
 - Auth: `~/.gradle/gradle.properties` with `gpr.user` and `gpr.key`
-- JDK 17 for development, JVM 11 target for compiled patches
+- JDK 21 recommended (aligns with template CI); JDK 17 is the minimum stated in desktop source
+- CLI runtime requires **JRE 21+**
 - `./gradlew buildAndroid` compiles patches to MPP (JAR + DEX)
 
+## Template Release Process
+- Releases are driven by semantic-release (conventional commits only)
+- `dev` branch → pre-release (e.g. `v1.2.0-dev.1`); `main` branch → stable (e.g. `v1.2.0`)
+- GitHub Actions auto-commits after release: `CHANGELOG.md`, `gradle.properties`,
+  `patches-bundle.json`, `patches-list.json`, and `README.md`
+- Released MPP artifacts receive build-provenance attestations
+- Always `git pull` after pushing — auto-committed files will otherwise cause push conflicts
+
 ## Our Patches Repo
-- `paresh-patches/` — custom patches for various apps
+- Configured via `MORPHE_PATCHES_DIR` environment variable (default: `morphe-patches/`)
 - Dev branch for work, main for releases
-- Check existing apps: `find paresh-patches/patches/src/main/kotlin/app/paresh/patches/ -maxdepth 1 -type d`
+- Check existing apps:
+  ```bash
+  PATCHES_DIR="${MORPHE_PATCHES_DIR:-morphe-patches}"
+  find "${PATCHES_DIR}/patches/src/main/kotlin" -mindepth 4 -maxdepth 4 -type d 2>/dev/null
+  ```
 
 ## License
-- GPLv3 with Section 7 restrictions: name "Morphe" cannot be used for derivative works
+- GPL-3.0-only. See the repository `LICENSE` file.

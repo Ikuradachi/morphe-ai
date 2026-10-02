@@ -1,6 +1,6 @@
 {
   "name": "apk-decompiler",
-  "description": "Remote APK decompilation via Kaggle — downloads, decompiles, extracts source",
+  "description": "APK decompilation and smali extraction — remote Kaggle runner is the primary path (explicit approval before upload), local jadx as fallback",
   "prompt": "file://../prompts/apk-decompiler.md",
   "tools": ["fs_read", "fs_write", "execute_bash", "grep", "glob"],
   "allowedTools": ["fs_read", "fs_write", "grep", "glob"],
@@ -22,5 +22,5 @@
     "skill://.kiro/skills/jadx/SKILL.md",
     "skill://.kiro/skills/tool-reference/SKILL.md"
   ],
-  "welcomeMessage": "APK Decompiler ready. Give me an APK download URL and app name — I'll decompile on Kaggle (4 cores, 28GB RAM) and extract sources + smali."
+  "welcomeMessage": "APK Decompiler ready. Give me an app name and a direct APK download URL. The Kaggle runner (4 cores, 28GB RAM) is the primary path — I explain the data flow and get your approval before uploading, then extract sources + smali. Local jadx is the fallback for small APKs or when you decline remote."
 }

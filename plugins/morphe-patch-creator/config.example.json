@@ -1,0 +1,10 @@
+{
+  "analysisDir": "analysis",
+  "patchesDir": null,
+  "cliJar": "morphe-cli.jar",
+  "keystorePath": null,
+  "decompiler": {
+    "mode": "local",
+    "remoteProvider": null
+  }
+}

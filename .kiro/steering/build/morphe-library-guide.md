@@ -93,9 +93,9 @@ classDef.toStringMethod()
 
 **Method cloning:**
 ```kotlin
-import app.morphe.util.cloneMutableAndPreserveParameters
+import app.morphe.util.cloneParameters
 
-val cloned = method.cloneMutableAndPreserveParameters()
+val cloned = method.cloneParameters()
 ```
 
 **Helpers:**
@@ -191,7 +191,7 @@ Runtime code that runs inside the patched app. Use with `extendWith()` in patche
 ## File Locations
 
 ```
-paresh-patches/patches/src/main/kotlin/
+${PATCHES_DIR}/patches/src/main/kotlin/
 ├── app/morphe/util/                    # Kotlin utilities
 │   ├── BytecodeUtils.kt               # ★ Most used
 │   ├── FreeRegisterProvider.kt
@@ -205,11 +205,13 @@ paresh-patches/patches/src/main/kotlin/
 │   └── transformation/
 │       ├── MethodCall.kt
 │       └── TransformInstructionsPatch.kt
-└── app/paresh/patches/<app>/           # Our patches
+└── <group>/patches/<app>/              # Your patches (discover group from build.gradle.kts)
 
-paresh-patches/extensions/extension/src/main/java/
+${PATCHES_DIR}/extensions/extension/src/main/java/
 └── app/morphe/extension/shared/        # Java runtime code
     ├── Utils.java, Logger.java, etc.
     ├── settings/                        # Settings framework
     └── ui/                              # UI components
 ```
+
+`${PATCHES_DIR}` = `${MORPHE_PATCHES_DIR:-morphe-patches}`

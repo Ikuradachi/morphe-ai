@@ -1,5 +1,8 @@
 # Morphe Patch Anatomy — Official Reference
 
+> ⚠️ Pinned source: morphe-patcher `6f189f9`, patches-library `6501aee`. Official docs may lag the
+> source — the pinned source wins if anything contradicts this file.
+
 ## Patch Types
 
 | Type | Use When | Performance |
@@ -14,9 +17,10 @@ Always prefer `bytecodePatch`.
 
 ```kotlin
 val COMPATIBILITY_XYZ = Compatibility(
-    name = "XYZ App",
     packageName = "app.xyz.mobile",
-    appIconColor = 0xFF3300,
+    name = "XYZ App",
+    apkFileType = ApkFileType.XAPK,
+    appIconColor = 0xFF3300,   // 0xRRGGBB — six-digit hex, zero alpha byte
     targets = listOf(
         AppTarget(version = "2.0.0"),
         AppTarget(version = "1.0.42"),
@@ -27,11 +31,11 @@ val COMPATIBILITY_XYZ = Compatibility(
 val disableAdsPatch = bytecodePatch(
     name = "Disable ads",
     description = "Disables ads in the app.",
-    default = true
+    default = true               // omit or set false for universal patches (enforced by builder)
 ) {
     compatibleWith(COMPATIBILITY_XYZ)
     dependsOn(disableAdsResourcePatch)
-    extendWith("disable-ads.mpe")
+    extendWith("disable-ads.mpe")   // ← extension artifact is .mpe, not .mpp
 
     execute {
         showAdsFingerprint.method.addInstructions(0, """
@@ -45,6 +49,18 @@ val disableAdsPatch = bytecodePatch(
         // Post-processing after all dependent patches execute
     }
 }
+```
+
+## `addInstructions` — Deprecation Note
+
+`addInstructions(String)` (no-index form) is **deprecated**. Always supply the index:
+
+```kotlin
+// ✅ Current
+method.addInstructions(0, "const/4 v0, 0x1\nreturn v0")
+
+// ❌ Deprecated — will be deleted
+method.addInstructions("const/4 v0, 0x1\nreturn v0")
 ```
 
 ## Patch Options
@@ -66,7 +82,7 @@ bytecodePatch(name = "B") { val v by sharedOption() }
 
 ## Extensions (Runtime DEX Code)
 
-Extensions are precompiled DEX files merged into the patched app before patch execution:
+Extensions are precompiled DEX files (`.mpe`) merged into the patched app before patch execution.
 
 ```java
 public class ComplexPatch {
@@ -77,11 +93,18 @@ public class ComplexPatch {
 Referenced in patches:
 ```kotlin
 val patch = bytecodePatch(name = "Complex") {
-    extendWith("complex-patch.mpe")
+    extendWith("complex-patch.mpe")   // ← .mpe not .mpp
     execute {
         fingerprint.method.addInstructions(0, "invoke-static {}, LComplexPatch;->doSomething()V")
     }
 }
+```
+
+### `extendWithAll` — variable extension count
+
+When the set of extensions is not known until patch time (e.g., determined by a dependency):
+```kotlin
+extendWithAll(Supplier { listOf(stream1, stream2) })
 ```
 
 ## Finalization Order
@@ -102,17 +125,111 @@ val patch = bytecodePatch(name = "Main") {
 
 ```kotlin
 val COMPAT = Compatibility(
-    name = "App Name",
-    packageName = "com.example.app",
-    apkFileType = ApkFileType.XAPK,     // APK, XAPK, APKM, APK_REQUIRED
-    appIconColor = 0x6200EE,
-    signatures = setOf("sha256..."),      // Optional
-    targets = listOf(
+    packageName = "com.example.app",  // must match Android package name regex
+    name = "App Name",                // required when packageName is non-null, must be non-blank
+    description = "Optional description.",
+    apkFileType = ApkFileType.XAPK,   // see ApkFileType below
+    appIconColor = 0x6200EE,          // 0xRRGGBB — alpha byte MUST be 0x00
+    signatures = setOf(
+        "a1b2c3...64hexchars"         // SHA-256 from apksigner verify --print-certs, 64 hex chars
+    ),
+    targets = listOf(                 // must be non-empty; newest first
         AppTarget(version = "2.0.0", minSdk = 28, isExperimental = true),
         AppTarget(version = "1.0.0", minSdk = 26),
     )
 )
 ```
+
+### Rules
+- `packageName` + `name` go together — if `packageName` is set, `name` must also be non-blank.
+- `appIconColor` is `0xRRGGBB` (six-digit). The alpha byte must be `0x00` (zero) or the
+  constructor throws. E.g. `0x6200EE` ✅, `0xFF6200EE` ❌.
+- `signatures` — each string must be exactly 64 hex characters (SHA-256).
+- `targets` — must be non-empty. Use `AppTarget(version = null)` for "any version".
+- Duplicate versions in `targets` throw `IllegalArgumentException`.
+
+### `including` / `excluding`
+
+```kotlin
+val COMPAT_PLUS = COMPAT.including(AppTarget(version = "3.0.0"))
+val COMPAT_MINUS = COMPAT.excluding("1.0.0", "1.0.42")
+```
+
+## ApkFileType Values
+
+```kotlin
+enum class ApkFileType {
+    APK,           // single APK (recommended)
+    APK_REQUIRED,  // single APK (required — other formats rejected)
+    APKM,          // APKMirror bundle (recommended)
+    APKM_REQUIRED, // APKMirror bundle (required)
+    APKS,          // bundletool APKS (recommended)
+    APKS_REQUIRED, // bundletool APKS (required)
+    XAPK,          // APKPure XAPK (recommended)
+    XAPK_REQUIRED, // APKPure XAPK (required)
+}
+```
+
+Non-`_REQUIRED` variants are recommendations; `_REQUIRED` variants enforce the format.
+
+## AppTarget
+
+```kotlin
+data class AppTarget(
+    val version: String?,                         // null = any version
+    val versionCodes: Map<SupportedAbi, Int>? = null,
+    val isExperimental: Boolean = false,
+    val minSdk: Int? = null,
+    val description: String? = null,
+)
+
+enum class SupportedAbi { ARM64_V8A, ARMEABI_V7A, X86_64, X86 }
+```
+
+`versionCodes` is only needed for apps that ship multiple releases per user-visible version
+(e.g., Meta apps). Pass a single `Int` overload to use the same code for all ABIs:
+
+```kotlin
+AppTarget(version = "2.0.0", versionCode = 20000)
+// expands to Map<SupportedAbi, Int> for all entries
+```
+
+## Patch Availability API
+
+Declare how a patch behaves for a given install target (Manager / CLI evaluates before selection):
+
+```kotlin
+import app.morphe.patcher.patch.InstallerType      // STANDARD, MOUNT, SHIZUKU
+import app.morphe.patcher.patch.ApkArchitecture    // ARM64_V8A, ARMEABI_V7A, X86_64, X86, UNIVERSAL
+import app.morphe.patcher.patch.PatchAvailability  // ENABLED, DISABLED, REQUIRED, UNAVAILABLE
+import app.morphe.patcher.patch.AvailabilityResolver
+
+val patch = bytecodePatch(name = "Root Only Feature") {
+    availability { installer, arch ->
+        if (installer == InstallerType.MOUNT) PatchAvailability.ENABLED
+        else PatchAvailability.UNAVAILABLE
+    }
+    execute { /* … */ }
+}
+```
+
+Patches without an `availability` block fall back to their `default` flag.
+
+## `category`
+
+Optional free-form group for UI display:
+
+```kotlin
+val patch = bytecodePatch(name = "Remove Banner Ads") {
+    category("Ads")
+    execute { /* … */ }
+}
+```
+
+## `default` Flag Warning
+
+Universal patches (no `compatibleWith`) with `default = true` are overridden to `false` with a
+console warning at build time. Always set `default = false` for universal patches.
 
 ## Project Structure
 
@@ -124,7 +241,7 @@ patches/src/main/kotlin/app/<group>/patches/
 │   └── <category>/
 │       ├── Fingerprints.kt
 │       └── SomePatch.kt
-extensions/<name>/src/main/java/   # Extension code
+extensions/<name>/src/main/java/   # Extension code (produces .mpe)
 ```
 
 ## Conventions
@@ -143,16 +260,26 @@ import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.string
 import app.morphe.patcher.methodCall
 import app.morphe.patcher.fieldAccess
+import app.morphe.patcher.newInstance
+import app.morphe.patcher.instanceOf
+import app.morphe.patcher.checkCast
 import app.morphe.patcher.opcode
 import app.morphe.patcher.literal
+import app.morphe.patcher.resourceLiteral
+import app.morphe.patcher.anyInstruction
+import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.rawResourcePatch
+import app.morphe.patcher.patch.resourcePatch
 import app.morphe.patcher.patch.ApkFileType
 import app.morphe.patcher.patch.AppTarget
 import app.morphe.patcher.patch.Compatibility
+import app.morphe.patcher.patch.InstallerType
+import app.morphe.patcher.patch.ApkArchitecture
+import app.morphe.patcher.patch.PatchAvailability
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction

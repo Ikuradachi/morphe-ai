@@ -108,7 +108,7 @@ Clone a method, add a helper, and hook all return points:
 
 ```kotlin
 // 1. Clone constructor with extra registers
-val cloned = method.cloneMutableAndPreserveParameters()
+val cloned = method.cloneParameters()
 
 // 2. Create helper method
 val helperMethod = ImmutableMethod(definingClass, "patch_setLoudnessDb", ...).toMutable().apply {

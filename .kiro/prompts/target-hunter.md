@@ -94,7 +94,8 @@ For EVERY target found in Java:
 When documenting fingerprint strategy:
 - NEVER use obfuscated names (a, b, H, e) — they change every update
 - ALWAYS map smali to fingerprint fields:
-  - `public static` → `accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC)`
+  - `public static` → `accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC)` — list EVERY flag exactly
+  - `public static final` → `accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC, AccessFlags.FINAL)`
   - `(Lcom/Foo;)Z` → `parameters = listOf("Lcom/Foo;")`, `returnType = "Z"`
   - `invoke-virtual {}, Lcom/Foo;->getName()` → `methodCall(definingClass = "Lcom/Foo;", name = "getName")`
   - `const-string "premium"` → `string("premium")`
@@ -103,6 +104,7 @@ When documenting fingerprint strategy:
 - Prefer fewer, more stable filters over many fragile ones
 - SDK class/method names are SAFE (never obfuscated)
 - App's own class/method names are UNSAFE (always obfuscated)
+- `accessFlags` is an **exact bitmask** — missing a flag (e.g. omitting FINAL) causes no-match
 
 ### When Nothing is Found
 - No billing SDK → try local checks: `isPro|isPremium|isSubscribed|hasPremium`
@@ -135,9 +137,10 @@ Each file MUST follow this format:
 
 ### Fingerprint Strategy
 ```kotlin
-Fingerprint(
+// Declare as object for named stack traces on failure
+object TargetMethodFingerprint : Fingerprint(
     returnType = "Z",
-    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),  // exact bitmask
     parameters = listOf("Lcom/revenuecat/purchases/CustomerInfo;"),
     filters = listOf(
         methodCall(definingClass = "Lcom/revenuecat/purchases/CustomerInfo;", name = "getEntitlements"),
