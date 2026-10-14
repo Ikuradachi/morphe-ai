@@ -7,7 +7,6 @@ analysis/eyecon/notes/secret.md
 analysis/
 MorpheApp/
 ai-docs/
-paresh-patches/
 morphe-patches/
 
 # Binaries/symlinks
@@ -37,3 +36,6 @@ app/
 morphe-cli-new.jar
 morphe-data/
 .claude/settings.local.json
+
+#patches
+carbit-patches/
