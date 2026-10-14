@@ -1,0 +1,5 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "morphe-patch-creator",
+  "description": "Claude-first workflow for authorized Android APK analysis and Morphe patch development, from reconnaissance through local validation."
+}

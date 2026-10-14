@@ -1,0 +1,4 @@
+# OpenAI Codex workspace configuration for morphe-ai
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 6
