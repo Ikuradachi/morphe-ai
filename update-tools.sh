@@ -11,7 +11,10 @@ CYAN='\033[0;36m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-WORKSPACE_DIR="/home/ikura/morphe-ai"
+SCRIPT_FILE="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_FILE")" >/dev/null 2>&1 && pwd)"
+WORKSPACE_DIR="${WORKSPACE_DIR:-$SCRIPT_DIR}"
+REA_JADX_MCP_VERSION="0.7.1"
 
 step() {
   echo -e "\n${BOLD}${BLUE}==>${NC} ${BOLD}$1${NC}"
@@ -111,11 +114,42 @@ NEW_REA=$(rea --version 2>/dev/null || echo "unknown")
 ok "REA is ready at v${NEW_REA}."
 
 # Ensure REA headless MCP jar exists
-if [ ! -f "$HOME/.local/share/rea/jadx-headless-mcp-0.7.1-all.jar" ]; then
-  info "Downloading missing jadx-headless-mcp-0.7.1-all.jar..."
+REA_JADX_INFO=$(python3 -c "
+import os, re, subprocess
+try:
+    rea_bin = subprocess.check_output(['which', 'rea'], stderr=subprocess.DEVNULL).decode().strip()
+    rea_real = os.path.realpath(rea_bin)
+    rea_pkg_dir = os.path.dirname(os.path.dirname(rea_real))
+    jadx_release_file = os.path.join(rea_pkg_dir, 'dist', 'android', 'JadxRelease.js')
+    ver = '${REA_JADX_MCP_VERSION}'
+    url = f'https://github.com/1013503897/jadx-headless-mcp/releases/download/v{ver}/jadx-headless-mcp-{ver}-all.jar'
+    if os.path.exists(jadx_release_file):
+        txt = open(jadx_release_file).read()
+        m_ver = re.search(r'version:\s*\"([^\"]+)\"', txt)
+        m_url = re.search(r'url:\s*\"([^\"]+)\"', txt)
+        if m_ver: ver = m_ver.group(1)
+        if m_url: url = m_url.group(1)
+    print(f'{ver} {url}')
+except Exception:
+    print('${REA_JADX_MCP_VERSION} https://github.com/1013503897/jadx-headless-mcp/releases/download/v${REA_JADX_MCP_VERSION}/jadx-headless-mcp-${REA_JADX_MCP_VERSION}-all.jar')
+" 2>/dev/null || echo "${REA_JADX_MCP_VERSION} https://github.com/1013503897/jadx-headless-mcp/releases/download/v${REA_JADX_MCP_VERSION}/jadx-headless-mcp-${REA_JADX_MCP_VERSION}-all.jar")
+
+read -r DETECTED_REA_JADX_VER DETECTED_REA_JADX_URL <<< "$REA_JADX_INFO"
+
+if [ -n "$DETECTED_REA_JADX_VER" ] && [ "$DETECTED_REA_JADX_VER" != "$REA_JADX_MCP_VERSION" ]; then
+  info "Updating REA_JADX_MCP_VERSION in update-tools.sh ($REA_JADX_MCP_VERSION -> $DETECTED_REA_JADX_VER)..."
+  sed -i "s/^REA_JADX_MCP_VERSION=.*/REA_JADX_MCP_VERSION=\"$DETECTED_REA_JADX_VER\"/" "$SCRIPT_FILE" 2>/dev/null || true
+  REA_JADX_MCP_VERSION="$DETECTED_REA_JADX_VER"
+fi
+
+REA_JAR_PATH="$HOME/.local/share/rea/jadx-headless-mcp-${DETECTED_REA_JADX_VER}-all.jar"
+if [ ! -f "$REA_JAR_PATH" ]; then
+  info "Downloading missing jadx-headless-mcp-${DETECTED_REA_JADX_VER}-all.jar..."
   mkdir -p "$HOME/.local/share/rea"
-  curl -sL "https://github.com/1013503897/jadx-headless-mcp/releases/download/v0.7.1/jadx-headless-mcp-0.7.1-all.jar" -o "$HOME/.local/share/rea/jadx-headless-mcp-0.7.1-all.jar"
-  ok "Downloaded JADX headless MCP jar."
+  curl -sL "$DETECTED_REA_JADX_URL" -o "$REA_JAR_PATH"
+  ok "Downloaded JADX headless MCP jar (v${DETECTED_REA_JADX_VER})."
+else
+  ok "JADX headless MCP jar is ready (v${DETECTED_REA_JADX_VER})."
 fi
 
 # 6. Update Mise Managed Runtimes
