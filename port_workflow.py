@@ -2,7 +2,7 @@
 """
 Port plugins/morphe-patch-creator (Claude Code plugin) to:
   1. OpenAI Codex (.codex/config.toml, .codex/agents/*.toml, .agents/skills/*)
-  2. Google Antigravity (.agents/agents/*.md, .agents/skills/*, .agents/plugins/morphe-patch-creator/)
+  2. Google Antigravity (.agents/agents/{name}/agent.md, .agents/skills/*, .agents/plugins/morphe-patch-creator/)
 """
 
 import argparse
@@ -233,7 +233,16 @@ def port_agents(
             f"{clean_body}\n"
         )
 
-        (agy_workspace_agents_dir / f"{agent_file.stem}.md").write_text(agy_md_content, encoding="utf-8")
+        # Workspace subagents follow the standard structure: .agents/agents/<name>/agent.md
+        workspace_agent_dir = agy_workspace_agents_dir / agent_file.stem
+        workspace_agent_dir.mkdir(parents=True, exist_ok=True)
+        (workspace_agent_dir / "agent.md").write_text(agy_md_content, encoding="utf-8")
+
+        # Clean up legacy flat file if present
+        legacy_flat_file = agy_workspace_agents_dir / f"{agent_file.stem}.md"
+        if legacy_flat_file.is_file():
+            legacy_flat_file.unlink()
+
         (agy_plugin_agents_dir / f"{agent_file.stem}.md").write_text(agy_md_content, encoding="utf-8")
         count += 1
 
@@ -346,7 +355,7 @@ def main() -> None:
     print(f"  - Skills/Commands ported : {skills_count} -> .agents/skills/")
     print(f"  - Codex TOML subagents   : {agents_count} -> .codex/agents/*.toml")
     print(f"  - Codex config           : .codex/config.toml")
-    print(f"  - Antigravity subagents  : {agents_count} -> .agents/agents/*.md")
+    print(f"  - Antigravity subagents  : {agents_count} -> .agents/agents/<name>/agent.md")
     print(f"  - Antigravity plugin pkg : .agents/plugins/morphe-patch-creator/")
 
 
