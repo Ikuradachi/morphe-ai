@@ -38,4 +38,6 @@ morphe-data/
 .claude/settings.local.json
 
 #patches
+ikura-patches/
 carbit-patches/
+bisan-patch/

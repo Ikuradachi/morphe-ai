@@ -1,6 +1,6 @@
 {
   "analysisDir": "analysis",
-  "patchesDir": "carbit-patches",
+  "patchesDir": "ikura-patches",
   "cliJar": "morphe-cli.jar",
   "keystorePath": null,
   "decompiler": {
