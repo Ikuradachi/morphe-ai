@@ -16,6 +16,16 @@ SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_FILE")" >/dev/null 2>&1 && pwd)"
 WORKSPACE_DIR="${WORKSPACE_DIR:-$SCRIPT_DIR}"
 REA_JADX_MCP_VERSION="0.7.1"
 
+# Load local workspace environment if present
+if [ -f "$WORKSPACE_DIR/.env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$WORKSPACE_DIR/.env"
+  set +a
+fi
+
+mkdir -p "$HOME/.local/bin" "$HOME/.local/share"
+
 step() {
   echo -e "\n${BOLD}${BLUE}==>${NC} ${BOLD}$1${NC}"
 }
@@ -45,11 +55,15 @@ step "1. Updating MorpheAI Workspace Repository"
 if [ -d "$WORKSPACE_DIR/.git" ]; then
   cd "$WORKSPACE_DIR"
   CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "main")
-  info "Pulling latest changes on branch: $CURRENT_BRANCH..."
-  if git pull --rebase origin "$CURRENT_BRANCH"; then
-    ok "MorpheAI workspace is up to date."
+  if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+    warn "Uncommitted changes detected in MorpheAI workspace. Skipping pull to protect local work."
   else
-    warn "Failed to pull MorpheAI workspace cleanly. Continuing..."
+    info "Pulling latest changes on branch: $CURRENT_BRANCH..."
+    if GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes" git pull --rebase origin "$CURRENT_BRANCH" 2>/dev/null; then
+      ok "MorpheAI workspace is up to date."
+    else
+      warn "Failed to pull MorpheAI workspace cleanly (offline or credentials required). Continuing..."
+    fi
   fi
 else
   warn "MorpheAI workspace is not a git repository at $WORKSPACE_DIR"
@@ -62,10 +76,14 @@ for dir in "$WORKSPACE_DIR"/*/; do
     REPO_NAME=$(basename "$dir")
     info "Updating patch repository: $REPO_NAME..."
     BRANCH=$(git -C "$dir" branch --show-current 2>/dev/null || echo "main")
-    if git -C "$dir" pull --rebase origin "$BRANCH"; then
-      ok "$REPO_NAME is up to date."
+    if [ -n "$(git -C "$dir" status --porcelain 2>/dev/null)" ]; then
+      warn "Uncommitted changes in $REPO_NAME. Skipping pull to protect local work."
     else
-      warn "Failed to pull $REPO_NAME. Continuing..."
+      if GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes" git -C "$dir" pull --rebase origin "$BRANCH" 2>/dev/null; then
+        ok "$REPO_NAME is up to date."
+      else
+        warn "Could not update $REPO_NAME (offline or credentials required). Continuing..."
+      fi
     fi
   fi
 done
@@ -152,8 +170,121 @@ else
   ok "JADX headless MCP jar is ready (v${DETECTED_REA_JADX_VER})."
 fi
 
-# 6. Update Mise Managed Runtimes
-step "6. Updating Mise Managed Tools (Java, ripgrep, uv)"
+# 6. Update Native Binary Analysis Tools (Ghidra, Frida, patchelf, LIEF)
+step "6. Updating Native Binary Tools (Ghidra, Frida, patchelf, LIEF)"
+
+# Ghidra (version verified by REA)
+DETECTED_GHIDRA_VER=$(python3 -c "
+import os, re, subprocess
+try:
+    rea_bin = subprocess.check_output(['which', 'rea'], stderr=subprocess.DEVNULL).decode().strip()
+    rea_real = os.path.realpath(rea_bin)
+    rea_pkg_dir = os.path.dirname(os.path.dirname(rea_real))
+    policy_file = os.path.join(rea_pkg_dir, 'dist', 'ghidra', 'GhidraReleasePolicy.js')
+    if os.path.exists(policy_file):
+        txt = open(policy_file).read()
+        m = re.search(r'SUPPORTED_GHIDRA_VERSION\s*=\s*\"([^\"]+)\"', txt)
+        if m: print(m.group(1))
+except Exception:
+    pass
+" 2>/dev/null || echo "12.1.4")
+GHIDRA_VER="${DETECTED_GHIDRA_VER:-12.1.4}"
+GHIDRA_TARGET_DIR="$HOME/.local/share/ghidra_${GHIDRA_VER}_PUBLIC"
+
+if [ -d "$GHIDRA_TARGET_DIR" ] && [ -x "$GHIDRA_TARGET_DIR/ghidraRun" ]; then
+  ok "Ghidra is up to date (v${GHIDRA_VER})."
+else
+  info "Installing / Updating Ghidra to v${GHIDRA_VER}..."
+  GHIDRA_URL=$(python3 -c "
+import urllib.request, json
+try:
+    req = urllib.request.Request('https://api.github.com/repos/NationalSecurityAgency/ghidra/releases/tags/Ghidra_${GHIDRA_VER}_build', headers={'User-Agent':'morphe-updater'})
+    data = json.loads(urllib.request.urlopen(req, timeout=5).read())
+    for asset in data.get('assets', []):
+        if asset['name'].endswith('.zip'):
+            print(asset['browser_download_url'])
+            break
+except Exception:
+    pass
+" 2>/dev/null || echo "")
+  if [ -n "$GHIDRA_URL" ]; then
+    TMP_GHIDRA_ZIP=$(mktemp /tmp/ghidra-XXXXXX.zip)
+    curl -sL "$GHIDRA_URL" -o "$TMP_GHIDRA_ZIP"
+    unzip -qo "$TMP_GHIDRA_ZIP" -d "$HOME/.local/share"
+    rm -f "$TMP_GHIDRA_ZIP"
+    ln -sfn "$GHIDRA_TARGET_DIR" "$HOME/.local/share/ghidra"
+    ln -sfn "$GHIDRA_TARGET_DIR/ghidraRun" "$HOME/.local/bin/ghidraRun"
+    ok "Ghidra v${GHIDRA_VER} installed."
+  else
+    warn "Failed to resolve Ghidra download URL for v${GHIDRA_VER}."
+  fi
+fi
+
+export GHIDRA_INSTALL_DIR="${GHIDRA_TARGET_DIR}"
+if ! grep -q "GHIDRA_INSTALL_DIR" "$WORKSPACE_DIR/.env" 2>/dev/null; then
+  echo "GHIDRA_INSTALL_DIR=${GHIDRA_TARGET_DIR}" >> "$WORKSPACE_DIR/.env"
+fi
+
+# Frida & frida-tools
+if command -v uv >/dev/null 2>&1; then
+  info "Checking for Frida & frida-tools updates..."
+  uv tool upgrade frida-tools --quiet 2>/dev/null || uv tool install frida-tools --quiet 2>/dev/null || true
+  FRIDA_VER=$(frida --version 2>/dev/null || echo "none")
+  ok "Frida is ready (v${FRIDA_VER})."
+fi
+
+# patchelf
+CURRENT_PATCHELF=$(patchelf --version 2>/dev/null | awk '{print $2}' || echo "none")
+LATEST_PATCHELF_INFO=$(python3 -c "
+import urllib.request, json
+try:
+    req = urllib.request.Request('https://api.github.com/repos/NixOS/patchelf/releases/latest', headers={'User-Agent':'morphe-updater'})
+    data = json.loads(urllib.request.urlopen(req, timeout=5).read())
+    tag = data['tag_name']
+    url = ''
+    for asset in data.get('assets', []):
+        if 'x86_64.tar.gz' in asset['name']:
+            url = asset['browser_download_url']
+            break
+    print(f'{tag} {url}')
+except Exception:
+    pass
+" 2>/dev/null || echo "")
+
+read -r LATEST_PATCHELF_TAG LATEST_PATCHELF_URL <<< "$LATEST_PATCHELF_INFO"
+if [ -n "$LATEST_PATCHELF_TAG" ] && [ -n "$LATEST_PATCHELF_URL" ]; then
+  if [ "$CURRENT_PATCHELF" = "$LATEST_PATCHELF_TAG" ]; then
+    ok "patchelf is up to date (v${CURRENT_PATCHELF})."
+  else
+    info "Installing / Updating patchelf (current: v${CURRENT_PATCHELF}, latest: v${LATEST_PATCHELF_TAG})..."
+    TMP_DIR=$(mktemp -d /tmp/patchelf-XXXXXX)
+    curl -sL "$LATEST_PATCHELF_URL" | tar -xz -C "$TMP_DIR"
+    cp "$TMP_DIR/bin/patchelf" "$HOME/.local/bin/patchelf"
+    chmod +x "$HOME/.local/bin/patchelf"
+    rm -rf "$TMP_DIR"
+    ok "patchelf updated to v${LATEST_PATCHELF_TAG}."
+  fi
+elif [ "$CURRENT_PATCHELF" != "none" ]; then
+  ok "patchelf is present (v${CURRENT_PATCHELF})."
+else
+  warn "patchelf is not installed and latest release could not be resolved."
+fi
+
+# LIEF & pyelftools
+if command -v uv >/dev/null 2>&1; then
+  if [ ! -d "$HOME/.local/share/binanalysis" ]; then
+    info "Initializing python environment for binary analysis at $HOME/.local/share/binanalysis..."
+    uv venv "$HOME/.local/share/binanalysis" --quiet
+  fi
+  info "Updating LIEF and pyelftools..."
+  uv pip install --python "$HOME/.local/share/binanalysis/bin/python" --upgrade lief pyelftools --quiet 2>/dev/null || true
+  ok "LIEF and pyelftools are ready."
+else
+  warn "uv not found; skipping LIEF and pyelftools installation."
+fi
+
+# 7. Update Mise Managed Runtimes
+step "7. Updating Mise Managed Tools (Java, ripgrep, uv)"
 if command -v mise >/dev/null 2>&1; then
   mise upgrade
   ok "Mise runtimes updated."
@@ -164,8 +295,8 @@ else
   info "Mise not found, skipping runtime upgrade."
 fi
 
-# 7. Diagnostic Health Checks
-step "7. Running Health Diagnostics"
+# 8. Diagnostic Health Checks
+step "8. Running Health Diagnostics"
 echo -e "\n${BOLD}[1/2] Morphe Doctor Check:${NC}"
 cd "$WORKSPACE_DIR"
 bash plugins/morphe-patch-creator/scripts/doctor.sh
