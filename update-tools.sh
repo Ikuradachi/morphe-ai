@@ -274,11 +274,13 @@ fi
 if command -v uv >/dev/null 2>&1; then
   if [ ! -d "$HOME/.local/share/binanalysis" ]; then
     info "Initializing python environment for binary analysis at $HOME/.local/share/binanalysis..."
-    uv venv "$HOME/.local/share/binanalysis" --quiet
+    uv venv "$HOME/.local/share/binanalysis" --quiet 2>/dev/null || true
   fi
-  info "Updating LIEF and pyelftools..."
-  uv pip install --python "$HOME/.local/share/binanalysis/bin/python" --upgrade lief pyelftools --quiet 2>/dev/null || true
-  ok "LIEF and pyelftools are ready."
+  if [ -d "$HOME/.local/share/binanalysis" ]; then
+    info "Updating LIEF and pyelftools..."
+    uv pip install --python "$HOME/.local/share/binanalysis/bin/python" --upgrade lief pyelftools --quiet 2>/dev/null || true
+    ok "LIEF and pyelftools are ready."
+  fi
 else
   warn "uv not found; skipping LIEF and pyelftools installation."
 fi
