@@ -1,5 +1,8 @@
 # Real-World Patch Patterns
 
+> ⚠️ Pinned source: morphe-patcher `6f189f9`, patches-library `6501aee`. Extension artifacts
+> are `.mpe` files. `addInstructions(String)` without index is deprecated — always pass index.
+
 ## Pattern 1: Simple Method Override (Video Ads)
 
 ```kotlin
@@ -155,6 +158,27 @@ classDefBy("Lokhttp3/CertificatePinner;")
 ```kotlin
 ProcessLicenseResponseFingerprint.method.addInstruction(0, "const/4 p1, 0x0")
 ValidateLicenseResponseFingerprint.method.returnEarly()
+```
+
+## Pattern 11: Navigate to Called Method via InstructionMatch
+
+```kotlin
+// Navigate to the mutable method called at a matched instruction
+val calledMethod = MyFingerprint.instructionMatches[0].getMethodCalled()
+calledMethod.returnEarly(true)
+```
+
+## Pattern 12: Patch Availability (root-only feature)
+
+```kotlin
+val mountOnlyPatch = bytecodePatch(name = "Mount Feature") {
+    availability { installer, _ ->
+        if (installer == InstallerType.MOUNT) PatchAvailability.ENABLED
+        else PatchAvailability.UNAVAILABLE
+    }
+    category("Misc")
+    execute { /* … */ }
+}
 ```
 
 ## Patch File Organization (morphe-patches)

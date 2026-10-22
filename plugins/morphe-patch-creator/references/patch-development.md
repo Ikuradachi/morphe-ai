@@ -120,10 +120,32 @@ method.removeInstruction(index)
 method.removeInstructions(index, count)
 method.replaceInstruction(index, "const/4 v0, 0x0")
 val instruction = method.getInstruction<OneRegisterInstruction>(index)
+
+// Navigate to called method from an instruction match
+val calledMethod = fingerprint.instructionMatches[0].getMethodCalled()
+
+// Native binary byte replacement via rawResourcePatch
+rawResourcePatch {
+    dependsOn(hexPatch(ignoreMissingTargetFiles = true, block = {
+        "28 AE 00 90 08 55 47 F9" asPatternTo "1F 20 03 D5 20 00 80 52" inFile "lib/arm64-v8a/libfoo.so"
+    }))
+}
 ```
 
 Use `instruction.registersUsed` from the patches library when available. Preserve `move-result*`
 adjacency, branch labels, try/catch boundaries, wide-register pairs, and parameter registers.
+
+## Availability & root-only features
+
+```kotlin
+val mountOnlyPatch = bytecodePatch(name = "Mount Feature") {
+    availability { installer, _ ->
+        if (installer == InstallerType.MOUNT) PatchAvailability.ENABLED
+        else PatchAvailability.UNAVAILABLE
+    }
+    execute { /* ... */ }
+}
+```
 
 ## Resource context APIs
 

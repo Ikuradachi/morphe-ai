@@ -11,11 +11,12 @@ argument-hint: [app-key] [requested-change]
 
 Search in this order unless the requested behavior requires a narrower route:
 
-1. Relevant app architecture and SDKs.
+1. Relevant app architecture and entitlement/feature SDKs.
 2. Requested feature or behavior call chain.
-3. Local feature gates and stable strings.
-4. Protections that directly prevent an authorized modification.
-5. Related ads, analytics, or configuration only when in scope.
+3. Local feature gates, SharedPreferences, and reactive state (StateFlow/Coroutines).
+4. Environment and runtime attestations that directly affect the authorized modification.
+5. Content filtering, layout components, analytics, or configuration only when in scope.
+6. Native binary libraries (`.so`) via REA MCP or local disassemblers when logic resides in JNI, Flutter, or Unity code.
 
 For every candidate, verify the exact smali method and record:
 
@@ -25,4 +26,4 @@ For every candidate, verify the exact smali method and record:
 - Stable fingerprint fields that avoid obfuscated app identifiers.
 - Proposed patch behavior and limitations.
 
-Write one findings file per target type under `analysis/<app>/notes/`. A Java-only finding is incomplete and must not be handed to `patch-writer`.
+Write findings under `analysis/<app>/notes/` (`entitlement-analysis.md`, `content-filtering.md`, `environment-attestation.md`, `feature-gates.md`, or `native-findings.md`). A Java-only finding is incomplete and must not be handed to `patch-writer`.

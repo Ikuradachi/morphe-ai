@@ -12,13 +12,13 @@ argument-hint: [app-key]
 Before editing, read `${CLAUDE_PLUGIN_ROOT}/references/upstream-baseline.md` and require:
 
 - A recon report.
-- Smali-verified findings.
+- Smali-verified findings (supporting `entitlement-analysis.md`, `content-filtering.md`, `environment-attestation.md`, `native-findings.md`, or legacy findings).
 - A named patch design with target files.
 - Recorded user approval for source modification.
 - A resolved patch repository.
 
 Read existing app patches and project conventions before changing files. Add to existing structure rather than overwriting it. Never use obfuscated app class, method, or field names as fingerprint identity. Prefer stable SDK calls, signatures, strings, literals, and ordered filters verified against smali.
 
-Extension artifacts use the `.mpe` suffix, not `.mpp`. Verify filter location API names and `instructionMatches` availability against the installed patcher version.
+Always supply the instruction index to `addInstructions(index, ...)` (`addInstructions(...)` without index is deprecated). Extension artifacts use the `.mpe` suffix, not `.mpp`. For native binary targets (`.so`), use `rawResourcePatch` with `hexPatch`. Verify filter location API names and `instructionMatches` availability against the installed patcher version.
 
 After editing, run the narrowest relevant compile/build validation. Return exact files changed, commands, exit results, and unresolved risks. Do not install to a device or perform Git write operations.

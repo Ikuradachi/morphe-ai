@@ -53,7 +53,7 @@ accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC)
 // ✅ Public static final — list all three
 accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC, AccessFlags.FINAL)
 
-// ❌ Wrong — won't match a "public static final" method
+// ❌ Wrong — won't match a "public static final" method if FINAL is omitted
 accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC)
 ```
 

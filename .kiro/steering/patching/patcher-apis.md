@@ -1,5 +1,8 @@
 # Morphe Advanced APIs + BytecodeUtils
 
+> ⚠️ Pinned source: morphe-patcher `6f189f9`, patches-library `6501aee`. Official docs may lag
+> the source — the pinned source wins if anything contradicts this file.
+
 ## Return Overrides (simplest way to patch)
 
 ```kotlin
@@ -14,6 +17,18 @@ method.returnEarly(null)       // return null (object)
 // Override all return statements (method still executes)
 method.returnLate(true)        // all returns become true
 method.returnLate(false)       // all returns become false
+```
+
+## `addInstructions` — Deprecation Note
+
+`addInstructions(String)` (no-index form) is **deprecated**. Always supply the index:
+
+```kotlin
+// ✅ Current
+method.addInstructions(0, "const/4 v0, 0x1\nreturn v0")
+
+// ❌ Deprecated — will be deleted
+method.addInstructions("const/4 v0, 0x1\nreturn v0")
 ```
 
 ## Instruction Search

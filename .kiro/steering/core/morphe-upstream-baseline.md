@@ -94,3 +94,10 @@ Run the mutating command itself only after an explicit user request.
 - Template semantic-release commits `CHANGELOG.md`, `gradle.properties`,
   `patches-bundle.json`, `patches-list.json`, and `README.md`, then back-merges `main` to `dev`.
   Released MPP files receive build-provenance attestations.
+
+## Community bundle catalog
+
+The authoritative public directory for discovering community patch bundles, target packages, and upstream developer repositories is hosted at:
+- **Web Catalog**: [https://morphe-patches.software/#bundles](https://morphe-patches.software/#bundles)
+
+Consult this directory when researching community precedent implementations or cross-referencing multi-bundle architectures.

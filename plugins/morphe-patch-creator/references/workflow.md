@@ -17,7 +17,8 @@ analysis/<app>/
 │   ├── morphe-workflow.json     # Machine-readable stage state
 │   ├── morphe-workflow.md       # Human summary
 │   ├── recon.md
-│   └── <target-type>.md
+│   ├── entitlement-analysis.md  # (or feature-gates.md, content-filtering.md,
+│   └── environment-attestation.md #  native-findings.md, etc.)
 ├── decompiled/                  # jadx output
 ├── smali/                       # One directory per DEX
 └── builds/                      # New patched artifacts and reports

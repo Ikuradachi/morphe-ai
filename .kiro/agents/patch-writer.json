@@ -1,6 +1,6 @@
 {
   "name": "patch-writer",
-  "description": "Write Morphe patches — fingerprints, patch logic, and constants from analysis findings",
+  "description": "Write Morphe patches — fingerprints, patch logic, and constants for feature adaptation and customization",
   "prompt": "file://../prompts/patch-writer.md",
   "tools": ["fs_read", "fs_write", "execute_bash", "grep", "glob", "code", "thinking"],
   "allowedTools": ["fs_read", "fs_write", "grep", "glob", "code", "thinking"],
@@ -23,7 +23,15 @@
   "resources": [
     "file://.kiro/steering/core/morphe-upstream-baseline.md",
     "file://.kiro/steering/patching/*.md",
-    "file://.kiro/steering/bytecode/*.md"
+    "file://.kiro/steering/bytecode/*.md",
+    "file://.kiro/steering/community/*.md",
+    "skill://.kiro/skills/patch-anatomy/SKILL.md",
+    "skill://.kiro/skills/patcher-apis/SKILL.md",
+    "skill://.kiro/skills/patch-examples/SKILL.md",
+    "skill://.kiro/skills/fingerprinting-guide/SKILL.md",
+    "skill://.kiro/skills/morphe-library/SKILL.md",
+    "skill://.kiro/skills/smali-debugging/SKILL.md",
+    "skill://.kiro/skills/native-hex-patching/SKILL.md"
   ],
   "hooks": {
     "agentSpawn": [
@@ -40,5 +48,5 @@
       }
     ]
   },
-  "welcomeMessage": "Patch Writer ready. Give me:\n- Analysis findings (findings.md or describe the target)\n- Smali method signature and instruction sequence\n- App package name and version\n\nI'll create the Fingerprints.kt, Patch.kt, and Constants.kt files. Writing patch .kt files triggers the configured local Gradle build hook."
+  "welcomeMessage": "Patch Writer ready. Provide analysis findings from notes, verified smali signatures, and target app package details to generate Fingerprints.kt, Patch.kt, and Constants.kt. Writing patch .kt files triggers the configured local Gradle build hook."
 }

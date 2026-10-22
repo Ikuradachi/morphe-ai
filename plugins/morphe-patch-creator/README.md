@@ -25,7 +25,7 @@ Run the read-only prerequisite check from the repository root:
 plugins/morphe-patch-creator/scripts/doctor.sh
 ```
 
-The doctor checks that Java major version is 21 or greater and reports the installed Morphe CLI version (using `-V`) when the jar exists. ADB, `gh`, `uv`/`uvx`, APKiD, and `jadx-decompiler-gui` are optional. The plugin reports missing dependencies; it never installs them or uses `sudo` automatically.
+The doctor checks that Java major version is 21 or greater and reports the installed Morphe CLI version (using `-V`) when the jar exists. ADB, `gh`, `uv`/`uvx`, APKiD, REA MCP (`morluto/rea`), and `jadx-decompiler-gui` are optional. The plugin reports missing dependencies; it never installs them or uses `sudo` automatically.
 
 ## Load during development
 

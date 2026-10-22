@@ -13,8 +13,9 @@ Use installed tools only. `doctor.sh` reports prerequisites; it never installs t
 | `baksmali` | Exact DEX disassembly |
 | `rg` | Text search |
 | `sha256sum` or `shasum` | Input identity |
+| `rea` (REA MCP) | Native `.so` binary disassembly & symbol analysis |
 
-Optional tools include `uvx apkid`, ADB, `gh`, and the separately installed `jadx-decompiler-gui` Kaggle provider.
+Optional tools include `uvx apkid`, ADB, `gh`, REA MCP (`morluto/rea`), and the separately installed `jadx-decompiler-gui` Kaggle provider.
 
 ## Container handling
 

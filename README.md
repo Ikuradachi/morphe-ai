@@ -72,14 +72,14 @@ The real value is in `.kiro/steering/` and `.kiro/prompts/` — portable markdow
 
 | Directory | Content |
 |-----------|---------|
-| `steering/core/` | Project overview, workspace layout |
+| `steering/core/` | Project overview, workspace layout, upstream baseline |
 | `steering/patching/` | Patch writing guides, APIs, extension development |
 | `steering/bytecode/` | Smali cheat sheet, fingerprinting, obfuscation guide |
-| `steering/patterns/` | Billing bypass, ad blocking, protection bypass patterns |
-| `steering/community/` | Patterns learned from 10+ community patch repos |
+| `steering/patterns/` | Entitlement simulation, content filtering, environment compatibility, and telemetry neutralization |
+| `steering/community/` | Patterns from 18+ community repos, master decision matrix, and bundle catalog ([morphe-patches.software/#bundles](https://morphe-patches.software/#bundles)) |
 | `steering/build/` | Build commands, CLI reference, troubleshooting |
-| `prompts/` | Agent role prompts (recon, decompiler, hunter, writer, deployer) |
-| `skills/` | On-demand knowledge (tool reference, FAQ, examples) |
+| `prompts/` | Agent role prompts (recon, decompiler, hunter with REA MCP, writer, deployer) |
+| `skills/` | On-demand skills (smali-debugging, native-hex-patching, network-security-config, fingerprinting, FAQ) |
 
 **To use with your AI tool:**
 1. Feed the relevant steering `.md` files as context/rules
@@ -104,6 +104,7 @@ The real value is in `.kiro/steering/` and `.kiro/prompts/` — portable markdow
 | dex2jar | Convert DEX → JAR | `sudo apt install dex2jar` |
 | apkid | Detect obfuscators/packers | `uvx apkid` (no install needed) |
 | kaggle | Remote decompilation API | `pip install kaggle` |
+| REA MCP | Native `.so` disassembly & symbol analysis | `npx rea-agents setup` ([morluto/rea](https://github.com/morluto/rea)) |
 
 > **Note:** `baksmali` from apt is used only for local DEX analysis and manual smali reading.
 > Patch builds use the Gradle plugin's own pinned baksmali/smali fork automatically.

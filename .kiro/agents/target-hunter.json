@@ -1,6 +1,6 @@
 {
   "name": "target-hunter",
-  "description": "Deep code analysis — search decompiled source, verify smali, document findings for patching",
+  "description": "Deep code analysis — inspect decompiled source, trace entitlement contracts, analyze layout components, verify smali, and document technical findings",
   "prompt": "file://../prompts/target-hunter.md",
   "tools": ["fs_read", "fs_write", "execute_bash", "grep", "glob", "code", "thinking"],
   "allowedTools": ["fs_read", "fs_write", "grep", "glob", "code", "thinking"],
@@ -20,7 +20,10 @@
     "file://.kiro/steering/core/morphe-upstream-baseline.md",
     "file://.kiro/steering/patterns/*.md",
     "file://.kiro/steering/community/*.md",
-    "file://.kiro/steering/bytecode/*.md"
+    "file://.kiro/steering/bytecode/*.md",
+    "skill://.kiro/skills/fingerprinting-guide/SKILL.md",
+    "skill://.kiro/skills/smali-debugging/SKILL.md",
+    "skill://.kiro/skills/network-security-config/SKILL.md"
   ],
-  "welcomeMessage": "Target Hunter ready. Give me an app name (with decompiled source in analysis/<app>/) and I'll find premium checks, ad code, subscription validation — then verify against smali and document findings."
+  "welcomeMessage": "Target Hunter ready. Provide an app name (with decompiled source in analysis/<app>/) to analyze feature flags, entitlement models, content layout filters, and smali bytecode structures for local compatibility patching."
 }

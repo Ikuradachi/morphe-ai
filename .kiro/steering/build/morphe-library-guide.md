@@ -1,5 +1,8 @@
 # Morphe Library Reference
 
+> ⚠️ Pinned source: morphe-patcher `6f189f9`, patches-library `6501aee`. Official docs may lag
+> the source — the pinned source wins if anything contradicts this file.
+
 ## Patch Utilities (Kotlin — `app.morphe.util.*`)
 
 ### BytecodeUtils.kt — Most Used
@@ -17,6 +20,12 @@ method.returnEarly("text")     // return string
 method.returnEarly(null)       // return null object
 method.returnLate(true)        // override ALL return statements to true
 method.returnLate(false)       // override ALL return statements to false
+```
+
+**`addInstructions` deprecation note:** Always supply the index argument:
+```kotlin
+method.addInstructions(0, "...")    // ✅ correct
+method.addInstructions("...")       // ❌ deprecated — will be deleted
 ```
 
 **Instruction search:**

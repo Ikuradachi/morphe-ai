@@ -82,7 +82,7 @@ IF nothing found → Ask: "Which app? Give me a name or APK file."
 |-------------|---------------|----------|
 | Nothing for this app | RECON | **apk-recon**: "Recon `<app>` — APK at `<path>`" |
 | `notes/recon.md` only | DECOMPILE | **apk-decompiler**: "Decompile `<app>` — URL is `<url>`" |
-| `decompiled/` + `smali/` | HUNT | **target-hunter**: "Find targets for `<app>` — looking for `<what>`" |
+| `decompiled/` + `smali/` | HUNT | **target-hunter**: "Analyze `<app>` — inspect `<features/entitlements/layout>`" |
 | `notes/` with findings | WRITE | **patch-writer**: "Write patches for `<app>`" |
 | `.kt` patch files exist | DEPLOY | **patch-deployer**: "Build and test `<app>`" |
 
@@ -92,14 +92,15 @@ IF nothing found → Ask: "Which app? Give me a name or APK file."
 |-------|---------------|----------|
 | apk-recon | APK file path | `analysis/<app>/notes/recon.md` |
 | apk-decompiler | App name + direct download URL | `decompiled/` + `smali/` |
-| target-hunter | App name + what to find | `notes/premium-bypass.md`, etc. |
+| target-hunter | App name + what to analyze (uses REA MCP for native `.so`) | `notes/entitlement-analysis.md`, `notes/content-filtering.md`, etc. |
 | patch-writer | App name (reads notes automatically) | `.kt` files in `${MORPHE_PATCHES_DIR:-morphe-patches}` |
 | patch-deployer | App name + action (build/test/deploy) | Patched APK in `builds/` |
 
 ### Routing Rules
 - User asks to write a patch → Route to **patch-writer**
 - User asks to decompile → Route to **apk-decompiler**
-- User asks to find targets/premium/ads → Route to **target-hunter**
+- User asks to analyze features/entitlements/layout/native code → Route to **target-hunter**
+- User asks to explore community bundles → Point to [https://morphe-patches.software/#bundles](https://morphe-patches.software/#bundles)
 - User asks to build/test/deploy → Route to **patch-deployer**
 - User asks to identify an APK → Route to **apk-recon**
 - User asks something outside Morphe → Say so honestly

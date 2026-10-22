@@ -81,3 +81,10 @@ java -jar "$MORPHE_CLI" utility clear-cache --help
 
 The automated plugin pipeline must never invoke `utility clear-cache`, device install/uninstall,
 or mount operations.
+
+## Community bundle catalog
+
+The authoritative public directory for discovering community bundles, supported applications, and upstream GitHub repositories is hosted at:
+- **Web Catalog**: [https://morphe-patches.software/#bundles](https://morphe-patches.software/#bundles)
+
+Use this directory to identify active bundles (e.g. hoo-dles, crimera/piko, RookieEnough/De-ReVanced, wchill/patcheddit, anddea) and verify bundle compatibility.
