@@ -61,6 +61,12 @@ PATCHES_DIR="${MORPHE_PATCHES_DIR:-morphe-patches}"
 ```
 This variable is read from the environment (set in `.env` or shell profile). When unset, it falls back to `morphe-patches`.
 
+To inspect or switch active patch repositories across the workspace:
+```bash
+./select-repo.sh [repo_name]
+```
+This updates both `MORPHE_PATCHES_DIR` in `.env` and `patchesDir` in `.morphe/config.json`.
+
 ### When User Mentions an App — ALWAYS Check State First
 
 Kiro agent JSON cannot interpolate environment variables in filesystem allowlists, so those configs use `**/patches/**` and `**/extensions/**`; agents must still resolve and modify only `PATCHES_DIR`.
@@ -160,6 +166,9 @@ Common filename: `com.example.app_1.2.3-12345_..._apkmirror.com.apkm`
 ```bash
 PATCHES_DIR="${MORPHE_PATCHES_DIR:-morphe-patches}"
 
+# Switch or inspect active patch repository
+./select-repo.sh [repo_name]
+
 # Build
 cd "${PATCHES_DIR}" && ./gradlew buildAndroid
 
@@ -173,6 +182,17 @@ java -jar morphe-cli.jar list-patches --patches "$MPP" -pvo
 # Search code
 rg "pattern" analysis/<app>/decompiled/ -g "*.java" -l
 ```
+
+### REA (Reverse Engineer Anything) Semantic Queries
+
+REA is available both as CLI commands and as registered MCP tools for DEX bytecode and native `.so` binaries:
+- `rea inspect-android-package <apk-path>`
+- `rea search-android-classes <apk-path> [query]`
+- `rea inspect-android-class <apk-path> <class-name>`
+- `rea inspect-android-method <apk-path> <class> <method>`
+- `rea trace-android-references <apk-path> <class-or-method>`
+- `rea search-procedures analysis/<app>/native/<abi>/<lib>.so "<procedure_name>"`
+- `rea procedure-assembly analysis/<app>/native/<abi>/<lib>.so <procedure_or_address>`
 
 ## Git
 

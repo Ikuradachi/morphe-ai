@@ -1,14 +1,11 @@
 # Secrets
 .env
 Morphe.keystore
-analysis/eyecon/notes/secret.md
 
 # Large/generated
 analysis/
 MorpheApp/
-ai-docs/
-paresh-patches/
-morphe-patches/
+temp-app/
 
 # Binaries/symlinks
 morphe-cli.jar
@@ -37,3 +34,10 @@ app/
 morphe-cli-new.jar
 morphe-data/
 .claude/settings.local.json
+
+# Patches
+/*-patches
+/*-patch
+
+# Local workspace config
+.morphe/
