@@ -1,11 +1,68 @@
-# Morphe AI
+# Morphe AI (Ikura Edition)
 
 AI-powered Android APK patching workspace. Multi-agent pipeline that automates: APK analysis → decompilation → target hunting → patch writing → build & deploy.
 
-Built with [Kiro CLI](https://kiro.dev), but the prompts, skills, and steering context are **model-agnostic** — adapt them to any AI coding assistant (Cursor, Copilot, Cline, Aider, Claude Code, etc.).
+Built with [Kiro CLI](https://kiro.dev), but the prompts, skills, and steering context are **model-agnostic** — adapted for **Google Antigravity**, **OpenAI Codex**, **Claude Code**, **Cursor**, **Copilot**, and more.
 
-**Author:** [Paresh Maheshwari](https://github.com/Paresh-Maheshwari)
-**Repository:** [morphe-ai](https://github.com/Paresh-Maheshwari/morphe-ai)
+- **Upstream Author:** [Paresh Maheshwari](https://github.com/Paresh-Maheshwari) | [Paresh-Maheshwari/morphe-ai](https://github.com/Paresh-Maheshwari/morphe-ai)
+- **Fork Maintainer:** [Ikura](https://github.com/Ikuradachi) (`ikura-main-re` branch)
+
+> [!NOTE]
+> **Ikura's Custom Workflow Edition (`ikura-main-re`)**:
+> This branch is modified and tailored to fit **Ikura's personal Android patching and reverse engineering workflow**. It extends the upstream Kiro/Claude pipeline with:
+> - **Google Antigravity & OpenAI Codex generation** via [`port_workflow.py`](port_workflow.py)
+> - **Multi-repository patch management** via [`select-repo.sh`](select-repo.sh)
+> - **All-in-one RE toolchain updates & diagnostics** via [`update-tools.sh`](update-tools.sh)
+> - **Native ELF/ARM64 reverse engineering with REA MCP & `rawResourcePatch`**
+> - **Unified multi-agent orchestrator rules** in [`AGENTS.md`](AGENTS.md)
+> - **Morphe patch repository template release guide** in [`PATCHES.md`](PATCHES.md)
+
+---
+
+## Ikura's Personal Patching Workflow & Enhancements
+
+This branch adapts Morphe AI into a modular, multi-repo, and multi-agent environment:
+
+### 1. Multi-Agent Ecosystem: Google Antigravity & OpenAI Codex
+Upstream Morphe AI natively ships Kiro CLI configs and a Claude Code plugin. This edition adds automated compilation to both Google Antigravity and OpenAI Codex:
+- Run `python3 port_workflow.py` to compile `plugins/morphe-patch-creator` into:
+  - `.agents/agents/<name>/agent.md` & `.agents/skills/*` for **Google Antigravity**.
+  - `.codex/agents/*.toml` & `.codex/config.toml` for **OpenAI Codex**.
+- [`AGENTS.md`](AGENTS.md) serves as the unified cross-agent orchestrator and routing contract across all platforms.
+
+### 2. Multi-Repository Patch Management (`select-repo.sh`)
+Work on multiple distinct patch repositories (e.g. `carbit-patches`, `pancake-patches`, `example-patches`) side-by-side within a single workspace:
+```bash
+# List available patch repositories and check which is active
+./select-repo.sh
+
+# Switch active repository
+./select-repo.sh pancake-patches
+```
+Switching automatically syncs `MORPHE_PATCHES_DIR` in `.env` and `patchesDir` in `.morphe/config.json`.
+
+### 3. All-in-One RE Toolchain Automation (`update-tools.sh`)
+A single script to install, update, and health-check the entire reverse engineering and runtime suite:
+```bash
+./update-tools.sh
+```
+- **Morphe Desktop CLI**: Downloads and verifies latest release jar (`morphe-cli.jar`).
+- **JADX & JADX-GUI**: Downloads latest GitHub release, symlinking binaries.
+- **REA (Reverse Engineer Anything)**: Upgrades `rea-agents` npm package and synchronizes the headless JADX MCP jar.
+- **Native Binary Analysis**: Installs/updates Ghidra (12.1.4), Frida (`frida-tools`), patchelf, LIEF, and pyelftools.
+- **Mise Managed Runtimes**: Upgrades Java 21 LTS, ripgrep, uv, agy, and codex.
+- **Diagnostics**: Runs `doctor.sh` and `rea mcp doctor` automated health checks.
+
+### 4. Native ARM64 Reverse Engineering & Hex Patching
+Target logic in C/C++, Flutter AOT (`libapp.so`), Unity IL2CPP (`libil2cpp.so`), or native JNI security checks cannot be patched via Dalvik bytecode. This branch incorporates:
+- **REA MCP Tooling**: Semantically inspect symbols, search strings, read bytes, and disassemble ARM64 procedures directly within the agent chat.
+- **`rawResourcePatch` with `HexPatchBuilder.hexPatch`**: Apply exact-byte hex substitutions with proper opcode padding (ARM64 `nop` `1F 20 03 D5`).
+- **Guidance & Opcode Cheat Sheets**: See [`.kiro/skills/native-hex-patching/SKILL.md`](.kiro/skills/native-hex-patching/SKILL.md) and [`.kiro/steering/community/flutter-and-native-patterns.md`](.kiro/steering/community/flutter-and-native-patterns.md).
+
+### 5. Morphe Patches Development Guide (`PATCHES.md`)
+Includes [`PATCHES.md`](PATCHES.md) &mdash; an in-depth reference for creating, configuring, and publishing new patch repositories from [`morphe-patches-template`](https://github.com/MorpheApp/morphe-patches-template).
+
+---
 
 ## Claude Code Plugin
 
@@ -118,30 +175,28 @@ pip install kaggle
 ## Quick Setup
 
 ```bash
-# 1. Clone
-git clone https://github.com/Paresh-Maheshwari/morphe-ai.git morphe && cd morphe
+# 1. Clone repository (Ikura edition)
+git clone -b ikura-main-re https://github.com/Ikuradachi/morphe-ai.git morphe-ai && cd morphe-ai
 
-# 2. Create .env with your secrets
+# 2. Automated toolchain & CLI update (installs/updates JADX, REA, Ghidra, Frida, Morphe CLI)
+./update-tools.sh
+
+# 3. Create .env with your secrets
 cp .env.example .env
-# Edit .env — add your KAGGLE_API_TOKEN
+# Edit .env — add your GITHUB_TOKEN (PAT with read:packages) and optional KAGGLE_API_TOKEN
 
-# 3. Gradle auth (for morphe patcher dependencies)
-mkdir -p ~/.gradle
-cat >> ~/.gradle/gradle.properties << EOF
-gpr.user = <your-github-username>
-gpr.key = <github-pat-with-read:packages>
-EOF
+# 4. Generate Antigravity & Codex subagents and skills
+python3 port_workflow.py
 
-# 4. Clone your patches repo
-#    You can use any folder name — set MORPHE_PATCHES_DIR to match (default: morphe-patches)
-export MORPHE_PATCHES_DIR=morphe-patches   # or any name you prefer
-git clone <your-patches-repo> "${MORPHE_PATCHES_DIR}"
+# 5. Clone patch repo(s) and select active repo
+git clone <your-patches-repo> pancake-patches
+./select-repo.sh pancake-patches
 
-# 5. Setup CLI (downloads latest from GitHub)
-./setup-cli.sh
-
-# 6. Start Kiro (this CLI is `kiro-cli`; `kiro` also works if aliased)
-kiro-cli chat
+# 6. Start your preferred AI assistant:
+# - Google Antigravity: agy
+# - OpenAI Codex:       codex
+# - Kiro CLI:           kiro-cli chat
+# - Claude Code:        claude --plugin-dir ./plugins/morphe-patch-creator
 ```
 
 ## Environment Variables
@@ -203,38 +258,38 @@ The `jadx-decompile` script runs decompilation on Kaggle's free servers (4 cores
 ## Workspace Structure
 
 ```
-morphe/
+morphe-ai/
 ├── .env.example            # Template for secrets
-├── .gitignore              # Ignores secrets, binaries, large folders
-├── AGENTS.md               # Main orchestrator prompt
+├── .gitignore              # Ignores secrets, binaries, patch repos, local configs
+├── AGENTS.md               # Unified orchestrator instructions (Antigravity & Codex)
+├── PATCHES.md              # Morphe patch development & release guide
 ├── LICENSE                 # GPL-3.0 license
-├── README.md               # This file
-├── setup-cli.sh            # CLI download script
-└── .kiro/
-    ├── agents/             # 6 agent configs
-    ├── prompts/            # Agent prompt files
-    ├── skills/             # 13 on-demand skills
-    ├── steering/           # 32 always-loaded context files
-    │   ├── core/           # Project overview (morphe agent)
-    │   ├── build/          # Build/CLI reference (patch-deployer)
-    │   ├── patching/       # Patch writing guides (patch-writer)
-    │   ├── bytecode/       # Smali/fingerprinting (patch-writer + target-hunter)
-    │   ├── patterns/       # Bypass patterns (target-hunter)
-    │   └── community/      # Community patch analysis (target-hunter)
-    ├── settings/           # LSP config
-    └── jadx-decompile      # Remote decompiler script
+├── README.md               # Workspace documentation (Ikura edition)
+├── port_workflow.py        # Compiles Claude plugin to Google Antigravity & OpenAI Codex
+├── select-repo.sh          # Switch / inspect active patch repository
+├── setup-cli.sh            # Morphe Desktop CLI download/build script
+├── update-tools.sh         # All-in-one RE toolchain updater & doctor diagnostics
+├── .agents/                # Generated Antigravity subagents & skills
+├── .codex/                 # Generated OpenAI Codex agents & config
+├── .kiro/                  # Kiro CLI agents, prompts, skills, and steering
+│   ├── agents/             # 6 agent configs (mapped to Claude, Antigravity, and Codex)
+│   ├── prompts/            # Agent prompt files (recon, decompiler, hunter, writer, deployer)
+│   ├── skills/             # 16 on-demand skills (smali-debugging, native-hex-patching, network-security-config, etc.)
+│   └── steering/           # 35 always-loaded context files across core, build, patching, bytecode, patterns, community
+└── plugins/morphe-patch-creator/ # Canonical Claude Code plugin package
 
 # Created locally after setup (gitignored):
-├── .env                    # Your secrets
-├── morphe-cli.jar          # CLI binary (created by setup-cli.sh)
-├── morphe-data/            # CLI data root (downloaded patches, logs, tmp, morphe.keystore)
-├── morphe-patches/         # Your patches repo clone (name set by MORPHE_PATCHES_DIR)
+├── .env                    # Secrets & workspace variables (MORPHE_PATCHES_DIR, GITHUB_TOKEN)
+├── .morphe/config.json     # Workspace runtime config (active patchesDir, decompiler mode)
+├── morphe-cli.jar          # Desktop CLI binary (managed by update-tools.sh)
+├── <repo>-patches/         # Active patch repo(s) (e.g. pancake-patches, carbit-patches)
+├── temp-app/               # Local working APKs for inspection & decompilation
 └── analysis/               # APK analysis work (per-app folders)
     └── <app>/
-        ├── apk/            # Original APK files (created by apk-recon)
-        ├── notes/          # Analysis findings (created by apk-recon)
-        ├── decompiled/     # Java source from jadx (created by apk-decompiler)
-        ├── smali/          # Bytecode from baksmali (created by apk-decompiler)
+        ├── notes/          # Recon findings & target analysis notes
+        ├── decompiled/     # Java source from jadx
+        ├── smali/          # Bytecode from baksmali
+        ├── native/         # Extracted .so ELF binaries for ARM64 analysis
         └── builds/         # Patched APKs (created by patch-deployer)
 ```
 
@@ -264,28 +319,29 @@ morphe/
 - **Context:** APK analysis skill, jadx skill, tool reference
 
 ### target-hunter
-- **Trigger:** "Find targets for `<app>` — looking for `<premium/ads/gates>`"
-- **What it does:** Searches decompiled code for billing SDKs, ads, feature gates. Verifies every finding against smali bytecode. Documents fingerprint strategies.
-- **Tools:** rg (ripgrep), glob, code (LSP), thinking
+- **Trigger:** "Find targets for `<app>` — looking for `<entitlements/filtering/layout/native>`"
+- **What it does:** Searches decompiled code for billing/entitlement SDKs, ads/content filters, feature gates, and native ARM64 functions. Verifies every finding against smali bytecode and disassembles native `.so` files using REA MCP. Documents resilient fingerprinting strategies.
+- **Tools:** rg (ripgrep), glob, code (LSP), REA MCP (Reverse Engineer Anything), thinking
 - **Input:** App name + what to find
-- **Output:** `analysis/<app>/notes/premium-bypass.md`, `ad-removal.md`, etc.
-- **Context:** Billing/ad/protection bypass patterns, community patch analysis, smali/fingerprinting guides
+- **Output:** `analysis/<app>/notes/entitlement-analysis.md`, `content-filtering.md`, `environment-compatibility.md`, `native-<target>.md`
+- **Context:** `entitlement-simulation-patterns`, `universal-content-filtering`, `environment-compatibility-patterns`, `telemetry-neutralization-patterns`, `flutter-and-native-patterns`, `modern-paywalls-patterns`, community patch catalogs, smali/fingerprinting guides
 
 ### patch-writer
 - **Trigger:** "Write patches for `<app>`"
-- **What it does:** Reads target findings, cross-checks against smali, writes Kotlin fingerprints + patch code, builds and verifies
+- **What it does:** Reads target findings, cross-checks against smali bytecode, writes Kotlin fingerprints + patch code, and implements binary hex patches (`rawResourcePatch` with `hexPatch`) for native `.so` libraries
 - **Tools:** rg, glob, code (LSP), gradle, thinking
 - **Input:** App name (reads notes automatically)
 - **Output:** `.kt` files in `${MORPHE_PATCHES_DIR:-morphe-patches}/patches/src/...`
-- **Context:** Patch development guides, patcher APIs, bytecode utilities, real patch examples, advanced techniques
+- **Context:** Modern patcher APIs (`rawResourcePatch`, `hexPatch`, `indexOfFirstInstruction`, Litho hooks), `native-hex-patching`, `network-security-config`, `smali-debugging`, bytecode utilities, real patch examples
 
-### patch-deployer
+### patch-deployer / patch-validator
 - **Trigger:** "Build and test `<app>`"
-- **What it does:** Builds patches with gradle, patches APK with morphe-cli, installs via ADB, reports results
+- **What it does:** Compiles patches with Gradle, executes patch validation checks, patches target APKs using Morphe Desktop CLI, and verifies installation via ADB
 - **Tools:** gradle, morphe-cli, adb, git
 - **Input:** App name + action (build/test/deploy)
 - **Output:** `analysis/<app>/builds/<app>_patched.apk`
 - **Context:** Build/CLI reference, troubleshooting guide
+- **Note:** In Kiro CLI, this role is named `patch-deployer`. In Claude Code, Google Antigravity, and OpenAI Codex, it is ported as `patch-validator` with safe sandbox boundaries.
 
 ## Pipeline
 
@@ -371,21 +427,42 @@ java -jar morphe-cli.jar patch -p patches.mpp --keystore my.keystore -o out.apk 
 | Agent gives wrong answer | Check steering files are loading: `/context show` in Kiro |
 | CLI fails to start | Ensure JRE 21+ is installed and `JAVA_HOME` is set correctly |
 
-## Community Patch Repos (Reference)
+## Community Patch Repos & Pattern Reference
 
-The steering files in `.kiro/steering/community/` contain patterns learned from these repos:
+The steering files in [`.kiro/steering/community/`](.kiro/steering/community/) contain patterns synthesized from 18+ community patch repositories, official Morphe upstream repositories, and the community bundle directory.
 
-| Repo | Focus | Patterns |
-|------|-------|----------|
-| [morphe-patches (hoo-dles)](https://github.com/hoo-dles/morphe-patches) | Various apps | Method injection, signature spoof, extension-based ad skip |
-| [De-ReVanced](https://github.com/RookieEnough/De-ReVanced) | YouTube/Music | Device ID spoofing, signature bypass |
-| [revanced-patches (anddea)](https://github.com/anddea/revanced-patches) | Extended YouTube | Advanced ad blocking, SponsorBlock |
-| [piko](https://github.com/crimera/piko) | Instagram | Entity patterns, JSON field replacement, feed filtering |
-| [patcheddit](https://github.com/wchill/patcheddit) | Reddit | Client ID spoofing, OAuth override, matchAll() bulk replace |
-| [adobo](https://github.com/jkennethcarino/adobo) | Universal ad blocking | Per-SDK ad removal (AdMob, Unity, AppLovin, IronSource) |
-| [AmpleReVanced](https://github.com/AmpleReVanced/revanced-patches) | Spotify | Hex patching native libs, protocol spoofing |
-| [morphe-meta-patches](https://github.com/MeridianFresco/morphe-meta-patches) | Facebook/Meta | Sponsored content removal, story filtering |
-| [binarymend](https://github.com/binarymend/morphe-patches) | Various apps | Telemetry blocking, bulk analytics disable |
+👉 **Official Community Bundle Catalog:** [https://morphe-patches.software/#bundles](https://morphe-patches.software/#bundles)
+
+### Key Community Repositories Indexed
+
+| Repository | Focus / Target Apps | Key Patterns & Techniques |
+|---|---|---|
+| [morphe-patches (hoo-dles)](https://github.com/hoo-dles/morphe-patches) | 42+ apps (Prime Video, Nova, WPS) | Method injection, signature spoofing, native ARM64 hex patching, bypass stubs |
+| [MorpheApp/morphe-patches](https://github.com/MorpheApp/morphe-patches) | Official Morphe patches (YouTube/Music) | Litho component filtering, settings framework, MicroG/GmsCore redirection |
+| [fluffy-patches (rabilrbl)](https://github.com/rabilrbl/fluffy-patches) | JioTV | Environment adaptation, root/integrity checks, SSL pinning removal |
+| [piko (crimera)](https://github.com/crimera/piko) | Instagram | Entity pattern, UI menu injection, ad filtering, link sanitization |
+| [patcheddit (wchill)](https://github.com/wchill/patcheddit) | Reddit | OkHttp builder interceptor injection, Parcelable model extension, JSON extraction |
+| [De-ReVanced (RookieEnough)](https://github.com/RookieEnough/De-ReVanced) | Strava, ProtonMail | XML resource limit overrides, multi-language string removal, configurable patch options |
+| [revanced-patches (anddea)](https://github.com/anddea/revanced-patches) | Extended YouTube/Music/Reddit | Named fingerprint pairs, version-aware patching, `classDefForEach` predicates |
+| [AmpleReVanced](https://github.com/AmpleReVanced/revanced-patches) | Spotify | Native URL redirection, local HTTP proxy in extensions, JSON stream hooks |
+| [Small Repos & Niche Patches](.kiro/steering/community/small-repos-patterns.md) | Various apps (Gboard, Duolingo, etc.) | Call-site return replacement, single-point RevenueCat hooks, XML overlays |
+
+### Pattern Decision Matrix
+
+Use this matrix to identify the right pattern file, API, and mechanism for your target application:
+
+| Objective | Target Framework / SDK | Steering Reference | Primary Mechanism & Patcher APIs |
+|---|---|---|---|
+| **Entitlement Simulation** | RevenueCat, Adapty v2/v3, Superwall, Qonversion | [`modern-paywalls-patterns.md`](.kiro/steering/community/modern-paywalls-patterns.md) | `method.returnEarly(true)`, `AdaptyProfile` mocking, boolean field stubbing |
+| **Reactive Feature Gates** | Kotlin Coroutines, StateFlow, SharedFlow | [`modern-paywalls-patterns.md`](.kiro/steering/community/modern-paywalls-patterns.md) | Flow emission overrides, `Continuation` interception |
+| **Component UI Ad Filtering** | Litho, ComponentContext, ComponentTree | [`official-morphe-patches-analysis.md`](.kiro/steering/community/official-morphe-patches-analysis.md) | Parser hook, Litho filter registration via `.mpe` extension |
+| **Feed Item Filtering** | RecyclerView, Reddit, Instagram | [`patcheddit-reddit-patterns.md`](.kiro/steering/community/patcheddit-reddit-patterns.md), [`piko-instagram-patterns.md`](.kiro/steering/community/piko-instagram-patterns.md) | List mutation in `.mpe`, `indexOfFirstInstruction` |
+| **Native Library Modification** | C/C++ `.so`, Flutter `libapp.so`, Unity `libil2cpp.so` | [`flutter-and-native-patterns.md`](.kiro/steering/community/flutter-and-native-patterns.md) | `rawResourcePatch` with `hexPatch`, ARM64 opcodes, REA MCP disassembly |
+| **Flutter Channel Hooks** | Flutter Platform Channels | [`flutter-and-native-patterns.md`](.kiro/steering/community/flutter-and-native-patterns.md) | `io.flutter.plugin.common.MethodChannel` hook |
+| **Network Traffic Inspection** | OkHttp3, CertificatePinner, TLS | [`network-security-config`](.kiro/skills/network-security-config/SKILL.md), [`patcheddit-reddit-patterns.md`](.kiro/steering/community/patcheddit-reddit-patterns.md) | OkHttp client builder interceptor, `CertificatePinner.check` NOP, trust anchors |
+| **Environment Compatibility** | Play Integrity, RootBeer, Test-Keys, Emulator | [`environment-compatibility-patterns.md`](.kiro/steering/patterns/environment-compatibility-patterns.md), [`hoodles-patch-catalog.md`](.kiro/steering/community/hoodles-patch-catalog.md) | `processLicenseResponse` stubbing, `isRooted` return false |
+| **Toggleable Settings UI** | SharedPreferences, Settings Screen | [`official-morphe-patches-analysis.md`](.kiro/steering/community/official-morphe-patches-analysis.md) | `PreferenceScreen.ADS.addPreferences(SwitchPreference(...))` |
+| **XML / Resource Overrides** | Limits, Manifest metadata, strings | [`de-revanced-patterns.md`](.kiro/steering/community/de-revanced-patterns.md) | `resourcePatch`, `document("...").use { ... }` |
 
 ## Contributing
 
