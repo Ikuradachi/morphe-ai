@@ -10,10 +10,17 @@ REPO="MorpheApp/morphe-desktop"
 download_release() {
     echo "📦 Fetching latest morphe-desktop release..."
     
-    # Get latest version from GitHub API
+    # Get latest version from GitHub API (fallback to redirect if rate-limited)
     LATEST=$(curl -s "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | cut -d'"' -f4)
-    
     if [ -z "$LATEST" ]; then
+        LATEST=$(curl -sIL -o /dev/null -w '%{url_effective}' "https://github.com/${REPO}/releases/latest" 2>/dev/null | awk -F'/' '{print $NF}')
+    fi
+    
+    if [ -z "$LATEST" ] || [ "$LATEST" = "latest" ]; then
+        if [ -f "$SYMLINK" ]; then
+            echo "⚠️ Could not check latest version from GitHub. Keeping current $(basename "$SYMLINK")."
+            exit 0
+        fi
         echo "❌ Failed to fetch latest version from GitHub"
         exit 1
     fi

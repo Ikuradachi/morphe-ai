@@ -92,8 +92,11 @@ done
 step "3. Updating Morphe Desktop CLI (morphe-cli.jar)"
 if [ -f "$WORKSPACE_DIR/setup-cli.sh" ]; then
   cd "$WORKSPACE_DIR"
-  bash "$WORKSPACE_DIR/setup-cli.sh" download
-  ok "Morphe CLI check completed."
+  if bash "$WORKSPACE_DIR/setup-cli.sh" download; then
+    ok "Morphe CLI check completed."
+  else
+    warn "Morphe CLI update failed. Continuing..."
+  fi
 else
   warn "setup-cli.sh not found in $WORKSPACE_DIR"
 fi
@@ -102,6 +105,9 @@ fi
 step "4. Checking for JADX Updates"
 CURRENT_JADX=$(jadx --version 2>/dev/null | head -n1 || echo "none")
 LATEST_TAG=$(python3 -c "import urllib.request, json; req=urllib.request.Request('https://api.github.com/repos/skylot/jadx/releases/latest', headers={'User-Agent':'morphe-updater'}); print(json.loads(urllib.request.urlopen(req, timeout=5).read())['tag_name'])" 2>/dev/null || echo "")
+if [ -z "$LATEST_TAG" ]; then
+  LATEST_TAG=$(curl -sIL -o /dev/null -w '%{url_effective}' "https://github.com/skylot/jadx/releases/latest" 2>/dev/null | awk -F'/' '{print $NF}')
+fi
 LATEST_JADX="${LATEST_TAG#v}"
 
 if [ -n "$LATEST_JADX" ]; then
