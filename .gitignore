@@ -41,3 +41,5 @@ morphe-data/
 
 # Local workspace config
 .morphe/
+/Kageroll/
+/pancake-patches/

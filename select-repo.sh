@@ -7,6 +7,20 @@ SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_FILE")" >/dev/null 2>&1 && pwd)"
 WORKSPACE_DIR="${WORKSPACE_DIR:-$SCRIPT_DIR}"
 CONFIG_FILE="${WORKSPACE_DIR}/.morphe/config.json"
 ENV_FILE="${WORKSPACE_DIR}/.env"
+GITIGNORE_FILE="${WORKSPACE_DIR}/.gitignore"
+
+# Auto-ignore detected patch repos in .gitignore
+if [ -f "$GITIGNORE_FILE" ]; then
+  for dir in "${WORKSPACE_DIR}"/*/; do
+    [ -d "$dir" ] || continue
+    b=$(basename "$dir")
+    if [ -f "$dir/build.gradle.kts" ] || [ -d "$dir/patches" ]; then
+      if ! grep -qxF "/$b/" "$GITIGNORE_FILE" && ! grep -qxF "/$b" "$GITIGNORE_FILE"; then
+        echo "/$b/" >> "$GITIGNORE_FILE"
+      fi
+    fi
+  done
+fi
 
 if [ -z "$1" ]; then
   CURRENT=$(grep "^MORPHE_PATCHES_DIR=" "$ENV_FILE" 2>/dev/null | cut -d= -f2)
